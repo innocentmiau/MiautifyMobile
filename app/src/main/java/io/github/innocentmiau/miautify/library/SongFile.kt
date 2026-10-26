@@ -8,11 +8,13 @@ package io.github.innocentmiau.miautify.library
  * @property folder The path of its folder from the music folder, like "Album/Disc 1", or "" at the top.
  * @property size The file size in bytes, 0 when unknown.
  * @property lastModified When the file last changed, in milliseconds since 1970, 0 when unknown.
+ * @property folderCoverId The id of a cover image in the same folder (like cover.jpg), or null.
  */
 data class SongFile(
     val documentId: String,
     val name: String,
     val folder: String,
     val size: Long = 0,
-    val lastModified: Long = 0
+    val lastModified: Long = 0,
+    val folderCoverId: String? = null
 )

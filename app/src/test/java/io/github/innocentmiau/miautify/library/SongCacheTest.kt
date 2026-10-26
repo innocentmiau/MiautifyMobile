@@ -45,6 +45,26 @@ class SongCacheTest {
     }
 
     @Test
+    fun aNewFolderCoverUpdatesTheRowWithoutReadingTagsAgain() {
+        val withCover = file("a").copy(folderCoverId = "cover")
+
+        val match = matchCache(listOf(withCover), mapOf("a" to CachedSong(100, 1, tags, folderCoverId = null)))
+
+        assertEquals(emptyList<Int>(), match.toRead)
+        assertEquals(listOf(0), match.toUpdate)
+        assertEquals(tags, match.songs.single().tags)
+    }
+
+    @Test
+    fun anUnchangedCoverNeedsNoUpdate() {
+        val withCover = file("a").copy(folderCoverId = "cover")
+
+        val match = matchCache(listOf(withCover), mapOf("a" to CachedSong(100, 1, tags, folderCoverId = "cover")))
+
+        assertEquals(emptyList<Int>(), match.toUpdate)
+    }
+
+    @Test
     fun theOrderOfTheFilesIsKept() {
         val files = listOf(file("c"), file("a"), file("b"))
 

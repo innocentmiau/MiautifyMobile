@@ -45,8 +45,11 @@ object MusicFolder {
         DocumentsContract.buildTreeDocumentUri(file.authority, DocumentsContract.getTreeDocumentId(file))
 
     /** The URI that opens [file], a file found by [scan] in [folder]. */
-    fun fileUri(folder: Uri, file: SongFile): Uri =
-        DocumentsContract.buildDocumentUriUsingTree(folder, file.documentId)
+    fun fileUri(folder: Uri, file: SongFile): Uri = documentUri(folder, file.documentId)
+
+    /** The URI that opens any file of [folder] by its id, like a folder's cover image. */
+    fun documentUri(folder: Uri, documentId: String): Uri =
+        DocumentsContract.buildDocumentUriUsingTree(folder, documentId)
 
     /**
      * Lists every mp3 in [folder] and its subfolders. Runs on a background thread, and stops

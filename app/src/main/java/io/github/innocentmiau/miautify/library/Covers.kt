@@ -16,9 +16,10 @@ import java.security.MessageDigest
 import kotlin.math.roundToInt
 
 /**
- * Song covers, read from the picture embedded in the mp3. Each one is read once, shrunk to a
- * small thumbnail and kept on disk (the app's cache folder) and in memory, so scrolling back
- * and later launches don't read the file again.
+ * Song covers, read from the picture embedded in the mp3, or else from the folder's cover
+ * image (like cover.jpg). Each one is read once, shrunk to a small thumbnail and kept on disk
+ * (the app's cache folder) and in memory, so scrolling back and later launches don't read the
+ * file again.
  */
 object Covers {
     /** Thumbnail size in pixels: enough for a 48 dp square on the sharpest screens. */
@@ -33,23 +34,38 @@ object Covers {
     private val loading = Dispatchers.IO.limitedParallelism(2)
 
     /** The thumbnail of [file] if it is in memory already, without waiting. */
-    fun cached(file: SongFile): ImageBitmap? = memory.get(key(file))
+    fun cached(file: SongFile): ImageBitmap? =
+        memory.get(songKey(file)) ?: file.folderCoverId?.let { memory.get(folderKey(it)) }
 
-    /** The thumbnail of [file], or null when it has no embedded picture. */
+    /**
+     * The thumbnail of [file]: its embedded picture, or else its folder's cover image (like
+     * cover.jpg), or null when it has neither.
+     */
     suspend fun load(context: Context, folder: Uri, file: SongFile): ImageBitmap? = withContext(loading) {
-        val key = key(file)
-        memory.get(key)?.let { return@withContext it }
-
         val dir = File(context.cacheDir, "covers").apply { mkdirs() }
+        val embedded = thumbnailOf(dir, songKey(file)) {
+            readEmbedded(context, MusicFolder.fileUri(folder, file))
+        }
+        if (embedded != null) return@withContext embedded
+
+        // Shared by every song of the folder, so it is read and shrunk only once.
+        val coverId = file.folderCoverId ?: return@withContext null
+        thumbnailOf(dir, folderKey(coverId)) {
+            readFile(context, MusicFolder.documentUri(folder, coverId))
+        }
+    }
+
+    /** The thumbnail saved as [key], from memory, then disk, then made from what [read] gives. */
+    private fun thumbnailOf(dir: File, key: String, read: () -> ByteArray?): ImageBitmap? {
+        memory.get(key)?.let { return it }
         val saved = File(dir, "$key.jpg")
         val bitmap = if (saved.exists()) {
             // An empty file means "looked before, no picture".
             if (saved.length() == 0L) null else BitmapFactory.decodeFile(saved.path)
         } else {
-            val picture = readEmbedded(context, MusicFolder.fileUri(folder, file))
-            picture?.let(::thumbnail).also { write(it, saved) }
+            read()?.let(::thumbnail).also { write(it, saved) }
         }
-        bitmap?.asImageBitmap()?.also { memory.put(key, it) }
+        return bitmap?.asImageBitmap()?.also { memory.put(key, it) }
     }
 
     /** Decodes [bytes] as a thumbnail whose shorter side is [SIZE] pixels, or null if it isn't an image. */
@@ -64,6 +80,9 @@ object Covers {
         if (scale >= 1f) return decoded
         return decoded.scale((decoded.width * scale).roundToInt(), (decoded.height * scale).roundToInt())
     }
+
+    private fun readFile(context: Context, file: Uri): ByteArray? =
+        runCatching { context.contentResolver.openInputStream(file)?.use { it.readBytes() } }.getOrNull()
 
     private fun readEmbedded(context: Context, file: Uri): ByteArray? {
         val retriever = MediaMetadataRetriever()
@@ -86,12 +105,14 @@ object Covers {
         }
     }
 
-    /** Changes when the file changes, so an edited cover is read again. */
-    private fun key(file: SongFile): String {
-        val digest = MessageDigest.getInstance("SHA-1")
-            .digest("${file.documentId}|${file.size}|${file.lastModified}".toByteArray())
-        return digest.joinToString("") { "%02x".format(it) }
-    }
+    /** Changes when the song file changes, so an edited embedded cover is read again. */
+    private fun songKey(file: SongFile): String = sha1("song|${file.documentId}|${file.size}|${file.lastModified}")
+
+    /** One per folder image. A cover.jpg replaced under the same name keeps its old thumbnail until the cache is cleared. */
+    private fun folderKey(coverId: String): String = sha1("folder|$coverId")
+
+    private fun sha1(text: String): String =
+        MessageDigest.getInstance("SHA-1").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }
 }
 
 /**

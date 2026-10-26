@@ -61,4 +61,35 @@ class FindSongsTest {
     fun emptyFolderHasNoSongs() {
         assertEquals(emptyList<SongFile>(), findSongs("root", tree("root" to emptyList())))
     }
+
+    @Test
+    fun songsGetTheCoverImageOfTheirOwnFolder() {
+        val children = tree(
+            "root" to listOf(file("top.mp3"), folder("album", "Album")),
+            // The image comes after the song in the listing: it still counts.
+            "album" to listOf(file("song.mp3"), file("img", "Cover.JPG"))
+        )
+
+        val covers = findSongs("root", children).associate { it.name to it.folderCoverId }
+
+        assertEquals(mapOf("top.mp3" to null, "song.mp3" to "img"), covers)
+    }
+
+    @Test
+    fun theBestNamedImageWins() {
+        val children = tree(
+            "root" to listOf(file("song.mp3"), file("album", "album.png"), file("cover", "cover.jpg"), file("front", "front.jpeg"))
+        )
+
+        assertEquals("cover", findSongs("root", children).single().folderCoverId)
+    }
+
+    @Test
+    fun otherImagesAreNotCovers() {
+        assertEquals(null, folderImageRank("photo.jpg"))
+        assertEquals(null, folderImageRank("cover.gif"))
+        assertEquals(null, folderImageRank("cover"))
+        assertEquals(0, folderImageRank("COVER.jpeg"))
+        assertEquals(1, folderImageRank("folder.png"))
+    }
 }

@@ -72,6 +72,7 @@ fun scanLibrary(context: Context, folder: Uri): Flow<ScanState> = flow {
 
     val match = matchCache(files, cachedRows.associate { it.documentId to it.toCachedSong() })
     dao.delete(key, match.removed)
+    dao.save(match.toUpdate.map { SongEntity(key, match.songs[it]) })
     val songs = match.songs.toMutableList()
     emit(ScanState.Done(songs.toList(), tagsToRead = match.toRead.size))
 

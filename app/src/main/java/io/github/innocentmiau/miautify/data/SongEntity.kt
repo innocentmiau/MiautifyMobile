@@ -23,11 +23,13 @@ data class SongEntity(
     val title: String?,
     val artist: String?,
     val album: String?,
-    val durationMs: Long?
+    val durationMs: Long?,
+    /** Added in database version 2. Null in rows from version 1 until the next scan fills it. */
+    val folderCoverId: String? = null
 ) {
-    fun toSong() = Song(SongFile(documentId, name, path, size, lastModified), toTags())
+    fun toSong() = Song(SongFile(documentId, name, path, size, lastModified, folderCoverId), toTags())
 
-    fun toCachedSong() = CachedSong(size, lastModified, toTags())
+    fun toCachedSong() = CachedSong(size, lastModified, toTags(), folderCoverId)
 
     private fun toTags() = SongTags(title, artist, album, durationMs)
 }
@@ -43,5 +45,6 @@ fun SongEntity(folder: String, song: Song) = SongEntity(
     title = song.tags?.title,
     artist = song.tags?.artist,
     album = song.tags?.album,
-    durationMs = song.tags?.durationMs
+    durationMs = song.tags?.durationMs,
+    folderCoverId = song.file.folderCoverId
 )
