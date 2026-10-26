@@ -2,10 +2,19 @@ package io.github.innocentmiau.miautify.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Discord's dark palette, from darkest to lightest gray, then the accent and text colors.
+val Darkest = Color(0xFF1E1F22)
+val Panel = Color(0xFF2B2D31)
+val Background = Color(0xFF313338)
+val Raised = Color(0xFF383A40)
+val Selected = Color(0xFF404249)
+val Outline = Color(0xFF4E5058)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+val Blurple = Color(0xFF5865F2)
+val BlurpleDark = Color(0xFF4752C4)
+
+val TextBright = Color(0xFFF2F3F5)
+val TextNormal = Color(0xFFDBDEE1)
+val TextMuted = Color(0xFF949BA4)
+
+val Danger = Color(0xFFF23F43)

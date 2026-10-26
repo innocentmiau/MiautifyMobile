@@ -14,13 +14,13 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -37,6 +37,7 @@ import io.github.innocentmiau.miautify.library.SongTags
 import io.github.innocentmiau.miautify.library.formatDuration
 import io.github.innocentmiau.miautify.playback.playSongs
 import io.github.innocentmiau.miautify.ui.theme.MiautifyTheme
+import io.github.innocentmiau.miautify.ui.theme.TextBright
 
 /**
  * Shows the songs in the chosen music folder and lets the user pick one, remembered between
@@ -194,15 +195,18 @@ private fun SongRow(folder: Uri?, song: Song, isPlaying: Boolean, onClick: () ->
 
     ListItem(
         modifier = Modifier.clickable(onClick = onClick),
+        // The playing song stands out like Discord's selected channel: a lighter row and a brighter title.
+        colors = if (isPlaying) {
+            ListItemDefaults.colors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                headlineColor = TextBright
+            )
+        } else {
+            ListItemDefaults.colors()
+        },
         leadingContent = { CoverImage(rememberCover(folder, song.file)) },
         headlineContent = {
-            Text(
-                text = song.title,
-                // The playing song stands out in the theme's accent color.
-                color = if (isPlaying) MaterialTheme.colorScheme.primary else Color.Unspecified,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Text(song.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
         },
         supportingContent = details.takeIf { it.isNotEmpty() }?.let {
             { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) }

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Same as Background in ui/theme/Color.kt, for the window before Compose draws. -->
+    <color name="background">#FF313338</color>
+</resources>

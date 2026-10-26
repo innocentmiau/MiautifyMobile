@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <style name="Theme.Miautify" parent="android:Theme.Material.Light.NoActionBar" />
+    <!--
+        The window behind the Compose UI: dark like the app, so opening it doesn't flash
+        white. Android 12+ also uses windowBackground for the launch screen behind the icon.
+    -->
+    <style name="Theme.Miautify" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/background</item>
+    </style>
 </resources>
