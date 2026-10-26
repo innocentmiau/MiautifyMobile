@@ -19,7 +19,9 @@ data class SavedSong(
     val uri: String,
     val title: String,
     val artist: String? = null,
-    val album: String? = null
+    val album: String? = null,
+    /** The folder's cover image, if any. Missing in queues saved before covers, which reads as null. */
+    val artworkUri: String? = null
 )
 
 // Ignores fields a newer version of the app may add, instead of failing on them.

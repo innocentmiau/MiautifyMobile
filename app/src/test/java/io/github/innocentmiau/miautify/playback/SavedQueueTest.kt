@@ -6,7 +6,7 @@ import org.junit.Test
 
 class SavedQueueTest {
     private val songs = listOf(
-        SavedSong("1", "content://a/1", "First", artist = "Artist", album = "Album"),
+        SavedSong("1", "content://a/1", "First", artist = "Artist", album = "Album", artworkUri = "content://a/cover"),
         SavedSong("2", "content://a/2", "Second")
     )
 
@@ -35,6 +35,13 @@ class SavedQueueTest {
 
         assertEquals(1, loaded?.index)
         assertEquals(0L, loaded?.positionMs)
+    }
+
+    @Test
+    fun aQueueSavedBeforeCoversLoadsWithoutArtwork() {
+        val text = """{"songs": [{"id": "1", "uri": "content://a/1", "title": "First"}], "index": 0, "positionMs": 0}"""
+
+        assertEquals(null, decodeQueue(text)?.songs?.single()?.artworkUri)
     }
 
     @Test

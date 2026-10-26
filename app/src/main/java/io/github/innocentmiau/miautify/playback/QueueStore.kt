@@ -48,7 +48,8 @@ private fun MediaItem.toSavedSong() = SavedSong(
     uri = localConfiguration?.uri?.toString().orEmpty(),
     title = mediaMetadata.title?.toString().orEmpty(),
     artist = mediaMetadata.artist?.toString(),
-    album = mediaMetadata.albumTitle?.toString()
+    album = mediaMetadata.albumTitle?.toString(),
+    artworkUri = mediaMetadata.artworkUri?.toString()
 )
 
 private fun SavedSong.toMediaItem(): MediaItem =
@@ -60,6 +61,7 @@ private fun SavedSong.toMediaItem(): MediaItem =
                 .setTitle(title)
                 .setArtist(artist)
                 .setAlbumTitle(album)
+                .setArtworkUri(artworkUri?.toUri())
                 .build()
         )
         .build()

@@ -97,20 +97,28 @@ private fun Player.nowPlaying(): NowPlaying? {
         durationMs = duration.takeIf { it != C.TIME_UNSET },
         shuffle = shuffleModeEnabled,
         repeatMode = repeatMode,
-        hasArtwork = mediaMetadata.artworkData != null
+        hasArtwork = mediaMetadata.artworkData != null || mediaMetadata.artworkUri != null
     )
 }
 
 /**
- * The playing song's cover as a thumbnail. Uses the picture the player already read from the
- * file for the notification, so the file isn't read twice.
+ * The playing song's cover as a thumbnail: the picture the player already read from the file
+ * for the notification, so the file isn't read twice, or else the folder's cover image.
  */
 @Composable
 fun rememberArtwork(player: Player?, nowPlaying: NowPlaying?): ImageBitmap? {
+    val context = LocalContext.current
     val artwork by produceState<ImageBitmap?>(null, player, nowPlaying?.songId, nowPlaying?.hasArtwork) {
-        // Read on the main thread like every player call, decoded on a background thread.
-        val bytes = player?.mediaMetadata?.artworkData ?: return@produceState
-        value = withContext(Dispatchers.Default) { Covers.thumbnail(bytes)?.asImageBitmap() }
+        // Read on the main thread like every player call, the rest on a background thread.
+        val metadata = player?.mediaMetadata ?: return@produceState
+        val embedded = metadata.artworkData
+        val folderImage = metadata.artworkUri
+        value = withContext(Dispatchers.IO) {
+            val bytes = embedded ?: folderImage?.let { uri ->
+                runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
+            }
+            bytes?.let { Covers.thumbnail(it)?.asImageBitmap() }
+        }
     }
     return artwork
 }
@@ -158,12 +166,14 @@ private fun Song.toMediaItem(folder: Uri): MediaItem =
     MediaItem.Builder()
         .setMediaId(file.documentId)
         .setUri(MusicFolder.fileUri(folder, file))
-        // Shown in the notification and on the lock screen. The cover is read from the file by the player.
+        // Shown in the notification and on the lock screen. The player reads an embedded cover
+        // from the file itself and prefers it; the folder's cover image is the fallback.
         .setMediaMetadata(
             MediaMetadata.Builder()
                 .setTitle(title)
                 .setArtist(tags?.artist)
                 .setAlbumTitle(tags?.album)
+                .setArtworkUri(file.folderCoverId?.let { MusicFolder.documentUri(folder, it) })
                 .build()
         )
         .build()
