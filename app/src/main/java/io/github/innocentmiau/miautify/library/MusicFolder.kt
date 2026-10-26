@@ -54,7 +54,13 @@ object MusicFolder {
      */
     suspend fun scan(context: Context, folder: Uri): List<SongFile> = withContext(Dispatchers.IO) {
         val resolver = context.contentResolver
-        val columns = arrayOf(Document.COLUMN_DOCUMENT_ID, Document.COLUMN_DISPLAY_NAME, Document.COLUMN_MIME_TYPE)
+        val columns = arrayOf(
+            Document.COLUMN_DOCUMENT_ID,
+            Document.COLUMN_DISPLAY_NAME,
+            Document.COLUMN_MIME_TYPE,
+            Document.COLUMN_SIZE,
+            Document.COLUMN_LAST_MODIFIED
+        )
 
         findSongs(DocumentsContract.getTreeDocumentId(folder)) { folderId ->
             // Throws CancellationException if the scan was cancelled, for example by picking another folder.
@@ -69,7 +75,10 @@ object MusicFolder {
                             DocumentEntry(
                                 id = cursor.getString(0),
                                 name = cursor.getString(1).orEmpty(),
-                                isFolder = cursor.getString(2) == Document.MIME_TYPE_DIR
+                                isFolder = cursor.getString(2) == Document.MIME_TYPE_DIR,
+                                // Some providers leave these empty (null), which reads as 0.
+                                size = cursor.getLong(3),
+                                lastModified = cursor.getLong(4)
                             )
                         )
                     }

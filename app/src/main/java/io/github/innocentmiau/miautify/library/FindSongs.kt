@@ -4,11 +4,18 @@ package io.github.innocentmiau.miautify.library
 data class DocumentEntry(
     val id: String,
     val name: String,
-    val isFolder: Boolean
+    val isFolder: Boolean,
+    val size: Long = 0,
+    val lastModified: Long = 0
 )
 
+/** The order of the song list: by folder, then by name, ignoring case. */
+val songFileOrder: Comparator<SongFile> =
+    compareBy(String.CASE_INSENSITIVE_ORDER, SongFile::folder)
+        .thenBy(String.CASE_INSENSITIVE_ORDER, SongFile::name)
+
 /**
- * Walks every folder under [rootId] and returns the mp3 files, sorted by folder and then by name.
+ * Walks every folder under [rootId] and returns the mp3 files in [songFileOrder].
  *
  * [children] lists what is directly inside one folder. It is a parameter so the walk can be
  * tested without a phone.
@@ -24,15 +31,13 @@ fun findSongs(rootId: String, children: (folderId: String) -> List<DocumentEntry
         for (entry in children(folderId)) {
             when {
                 entry.isFolder -> pending.addLast(entry.id to joinPath(path, entry.name))
-                entry.name.endsWith(".mp3", ignoreCase = true) -> songs += SongFile(entry.id, entry.name, path)
+                entry.name.endsWith(".mp3", ignoreCase = true) ->
+                    songs += SongFile(entry.id, entry.name, path, entry.size, entry.lastModified)
             }
         }
     }
 
-    return songs.sortedWith(
-        compareBy(String.CASE_INSENSITIVE_ORDER, SongFile::folder)
-            .thenBy(String.CASE_INSENSITIVE_ORDER, SongFile::name)
-    )
+    return songs.sortedWith(songFileOrder)
 }
 
 private fun joinPath(parent: String, name: String): String =

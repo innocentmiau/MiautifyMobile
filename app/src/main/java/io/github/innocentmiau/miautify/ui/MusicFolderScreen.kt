@@ -152,10 +152,10 @@ private fun SongList(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = if (scan.readingTags) {
-                        stringResource(R.string.library_reading_tags, scan.tagsRead, songs.size)
-                    } else {
-                        pluralStringResource(R.plurals.library_song_count, songs.size, songs.size)
+                    text = when {
+                        scan.checking -> stringResource(R.string.library_checking)
+                        scan.readingTags -> stringResource(R.string.library_reading_tags, scan.tagsRead, scan.tagsToRead)
+                        else -> pluralStringResource(R.plurals.library_song_count, songs.size, songs.size)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -234,7 +234,7 @@ private fun SongListPreview() {
     MiautifyTheme {
         MusicFolderContent(
             folderName = "Music",
-            scan = ScanState.Done(songs, tagsRead = 2),
+            scan = ScanState.Done(songs, tagsToRead = 3, tagsRead = 2),
             playingSongId = "2",
             onChooseFolder = {},
             onPlaySong = { _, _ -> },
