@@ -4,12 +4,15 @@ import android.content.ComponentName
 import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
@@ -17,6 +20,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import io.github.innocentmiau.miautify.library.MusicFolder
 import io.github.innocentmiau.miautify.library.Song
+import kotlinx.coroutines.delay
 
 /**
  * Connects to [PlaybackService] while the screen is shown. Null until connected (a moment
@@ -42,12 +46,16 @@ fun rememberPlayer(): Player? {
     return controller
 }
 
-/** What the screen shows about the player. [songId] is the playing file's document id. */
+/**
+ * What the screen shows about the player. [songId] is the playing file's document id.
+ * [durationMs] is null until the player knows it, a moment after the song starts.
+ */
 data class NowPlaying(
     val songId: String,
     val title: String,
     val artist: String?,
-    val isPlaying: Boolean
+    val isPlaying: Boolean,
+    val durationMs: Long?
 )
 
 /** The player's current song, updated on every change; null when nothing is loaded. */
@@ -74,8 +82,41 @@ private fun Player.nowPlaying(): NowPlaying? {
         songId = item.mediaId,
         title = item.mediaMetadata.title?.toString().orEmpty(),
         artist = item.mediaMetadata.artist?.toString(),
-        isPlaying = isPlaying
+        isPlaying = isPlaying,
+        durationMs = duration.takeIf { it != C.TIME_UNSET }
     )
+}
+
+/**
+ * The position in the current song in milliseconds. Read right away on seeks, song changes,
+ * play and pause, and a few times per second while playing, since playing moves it without
+ * any event. Read it only where it is shown, because it changes often.
+ */
+@Composable
+fun rememberPositionMs(player: Player?): Long {
+    var position by remember(player) { mutableLongStateOf(player?.currentPosition ?: 0L) }
+    var playing by remember(player) { mutableStateOf(player?.isPlaying == true) }
+
+    DisposableEffect(player) {
+        if (player == null) return@DisposableEffect onDispose {}
+        val listener = object : Player.Listener {
+            override fun onEvents(player: Player, events: Player.Events) {
+                position = player.currentPosition
+                playing = player.isPlaying
+            }
+        }
+        player.addListener(listener)
+        onDispose { player.removeListener(listener) }
+    }
+
+    // Restarts when playing starts or stops, so it only loops while playing.
+    LaunchedEffect(player, playing) {
+        while (player != null && playing) {
+            position = player.currentPosition
+            delay(250)
+        }
+    }
+    return position
 }
 
 /** Replaces the queue with [songs] and plays from [startIndex]. */

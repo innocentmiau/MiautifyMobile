@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import io.github.innocentmiau.miautify.playback.rememberNowPlaying
 import io.github.innocentmiau.miautify.playback.rememberPlayer
+import io.github.innocentmiau.miautify.playback.rememberPositionMs
 import io.github.innocentmiau.miautify.ui.MusicFolderScreen
 import io.github.innocentmiau.miautify.ui.PlayerBar
 import io.github.innocentmiau.miautify.ui.theme.MiautifyTheme
@@ -36,8 +37,12 @@ fun MiautifyApp() {
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
             if (player != null && nowPlaying != null) {
+                // Read here and not above, so the 4 updates per second redraw only the bar.
+                val positionMs = rememberPositionMs(player)
                 PlayerBar(
                     nowPlaying = nowPlaying,
+                    positionMs = positionMs,
+                    onSeek = { player.seekTo(it) },
                     onPrevious = { player.seekToPrevious() },
                     onPlayPause = { if (player.isPlaying) player.pause() else player.play() },
                     onNext = { player.seekToNext() }
