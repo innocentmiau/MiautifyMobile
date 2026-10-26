@@ -8,8 +8,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.media3.common.C
@@ -18,9 +21,12 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import io.github.innocentmiau.miautify.library.Covers
 import io.github.innocentmiau.miautify.library.MusicFolder
 import io.github.innocentmiau.miautify.library.Song
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 /**
  * Connects to [PlaybackService] while the screen is shown. Null until connected (a moment
@@ -58,7 +64,9 @@ data class NowPlaying(
     val durationMs: Long?,
     val shuffle: Boolean = false,
     /** One of Player.REPEAT_MODE_OFF, REPEAT_MODE_ALL or REPEAT_MODE_ONE. */
-    val repeatMode: Int = Player.REPEAT_MODE_OFF
+    val repeatMode: Int = Player.REPEAT_MODE_OFF,
+    /** True once the player has read a cover from the file, a moment after the song starts. */
+    val hasArtwork: Boolean = false
 )
 
 /** The player's current song, updated on every change; null when nothing is loaded. */
@@ -88,8 +96,23 @@ private fun Player.nowPlaying(): NowPlaying? {
         isPlaying = isPlaying,
         durationMs = duration.takeIf { it != C.TIME_UNSET },
         shuffle = shuffleModeEnabled,
-        repeatMode = repeatMode
+        repeatMode = repeatMode,
+        hasArtwork = mediaMetadata.artworkData != null
     )
+}
+
+/**
+ * The playing song's cover as a thumbnail. Uses the picture the player already read from the
+ * file for the notification, so the file isn't read twice.
+ */
+@Composable
+fun rememberArtwork(player: Player?, nowPlaying: NowPlaying?): ImageBitmap? {
+    val artwork by produceState<ImageBitmap?>(null, player, nowPlaying?.songId, nowPlaying?.hasArtwork) {
+        // Read on the main thread like every player call, decoded on a background thread.
+        val bytes = player?.mediaMetadata?.artworkData ?: return@produceState
+        value = withContext(Dispatchers.Default) { Covers.thumbnail(bytes)?.asImageBitmap() }
+    }
+    return artwork
 }
 
 /**

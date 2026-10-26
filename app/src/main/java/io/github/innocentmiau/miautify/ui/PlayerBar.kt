@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -38,6 +39,7 @@ import io.github.innocentmiau.miautify.ui.theme.MiautifyTheme
 @Composable
 fun PlayerBar(
     nowPlaying: NowPlaying,
+    cover: ImageBitmap?,
     positionMs: Long,
     onSeek: (positionMs: Long) -> Unit,
     onPrevious: () -> Unit,
@@ -62,7 +64,12 @@ fun PlayerBar(
                 modifier = Modifier.padding(start = 16.dp, end = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                CoverImage(cover)
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 12.dp)
+                ) {
                     Text(
                         text = nowPlaying.title,
                         style = MaterialTheme.typography.titleMedium,
@@ -165,6 +172,7 @@ private fun PlayerBarPreview() {
                 "1", "First Song", "Some Artist", isPlaying = true, durationMs = 198_000,
                 shuffle = true, repeatMode = Player.REPEAT_MODE_ONE
             ),
+            cover = null,
             positionMs = 67_000,
             onSeek = {},
             onPrevious = {},

@@ -10,6 +10,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import io.github.innocentmiau.miautify.playback.nextRepeatMode
+import io.github.innocentmiau.miautify.playback.rememberArtwork
 import io.github.innocentmiau.miautify.playback.rememberNowPlaying
 import io.github.innocentmiau.miautify.playback.rememberPlayer
 import io.github.innocentmiau.miautify.playback.rememberPositionMs
@@ -40,8 +41,10 @@ fun MiautifyApp() {
             if (player != null && nowPlaying != null) {
                 // Read here and not above, so the 4 updates per second redraw only the bar.
                 val positionMs = rememberPositionMs(player)
+                val cover = rememberArtwork(player, nowPlaying)
                 PlayerBar(
                     nowPlaying = nowPlaying,
+                    cover = cover,
                     positionMs = positionMs,
                     onSeek = { player.seekTo(it) },
                     onPrevious = { player.seekToPrevious() },

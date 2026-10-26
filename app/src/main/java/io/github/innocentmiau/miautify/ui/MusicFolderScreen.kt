@@ -1,5 +1,6 @@
 package io.github.innocentmiau.miautify.ui
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -63,6 +64,7 @@ fun MusicFolderScreen(
     }
 
     MusicFolderContent(
+        folder = library.folder,
         folderName = library.folderName,
         scan = library.scan,
         playingSongId = playingSongId,
@@ -79,6 +81,7 @@ fun MusicFolderScreen(
 /** [scan] is null when no folder was chosen yet. */
 @Composable
 private fun MusicFolderContent(
+    folder: Uri?,
     folderName: String?,
     scan: ScanState?,
     playingSongId: String?,
@@ -94,7 +97,7 @@ private fun MusicFolderContent(
             if (scan.songs.isEmpty()) {
                 Message(stringResource(R.string.library_no_songs), onChooseFolder, modifier)
             } else {
-                SongList(folderName, scan, playingSongId, onChooseFolder, onPlaySong, modifier)
+                SongList(folder, folderName, scan, playingSongId, onChooseFolder, onPlaySong, modifier)
             }
     }
 }
@@ -131,6 +134,7 @@ private fun Scanning(modifier: Modifier = Modifier) {
 
 @Composable
 private fun SongList(
+    folder: Uri?,
     folderName: String?,
     scan: ScanState.Done,
     playingSongId: String?,
@@ -170,6 +174,7 @@ private fun SongList(
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             itemsIndexed(songs, key = { _, song -> song.file.documentId }) { index, song ->
                 SongRow(
+                    folder = folder,
                     song = song,
                     isPlaying = song.file.documentId == playingSongId,
                     onClick = { onPlaySong(songs, index) }
@@ -180,7 +185,7 @@ private fun SongList(
 }
 
 @Composable
-private fun SongRow(song: Song, isPlaying: Boolean, onClick: () -> Unit) {
+private fun SongRow(folder: Uri?, song: Song, isPlaying: Boolean, onClick: () -> Unit) {
     // "Artist · Album", or the folder path until the tags are read or when there are none.
     val details = listOfNotNull(song.tags?.artist, song.tags?.album)
         .joinToString(" · ")
@@ -189,6 +194,7 @@ private fun SongRow(song: Song, isPlaying: Boolean, onClick: () -> Unit) {
 
     ListItem(
         modifier = Modifier.clickable(onClick = onClick),
+        leadingContent = { CoverImage(rememberCover(folder, song.file)) },
         headlineContent = {
             Text(
                 text = song.title,
@@ -211,7 +217,7 @@ private fun SongRow(song: Song, isPlaying: Boolean, onClick: () -> Unit) {
 @Composable
 private fun NoFolderPreview() {
     MiautifyTheme {
-        MusicFolderContent(folderName = null, scan = null, playingSongId = null, onChooseFolder = {}, onPlaySong = { _, _ -> }, modifier = Modifier.fillMaxSize())
+        MusicFolderContent(folder = null, folderName = null, scan = null, playingSongId = null, onChooseFolder = {}, onPlaySong = { _, _ -> }, modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -219,7 +225,7 @@ private fun NoFolderPreview() {
 @Composable
 private fun ScanningPreview() {
     MiautifyTheme {
-        MusicFolderContent(folderName = "Music", scan = ScanState.Scanning, playingSongId = null, onChooseFolder = {}, onPlaySong = { _, _ -> }, modifier = Modifier.fillMaxSize())
+        MusicFolderContent(folder = null, folderName = "Music", scan = ScanState.Scanning, playingSongId = null, onChooseFolder = {}, onPlaySong = { _, _ -> }, modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -233,6 +239,7 @@ private fun SongListPreview() {
     )
     MiautifyTheme {
         MusicFolderContent(
+            folder = null,
             folderName = "Music",
             scan = ScanState.Done(songs, tagsToRead = 3, tagsRead = 2),
             playingSongId = "2",

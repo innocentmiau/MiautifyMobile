@@ -1,0 +1,107 @@
+package io.github.innocentmiau.miautify.library
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
+import android.net.Uri
+import android.util.LruCache
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.scale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.security.MessageDigest
+import kotlin.math.roundToInt
+
+/**
+ * Song covers, read from the picture embedded in the mp3. Each one is read once, shrunk to a
+ * small thumbnail and kept on disk (the app's cache folder) and in memory, so scrolling back
+ * and later launches don't read the file again.
+ */
+object Covers {
+    /** Thumbnail size in pixels: enough for a 48 dp square on the sharpest screens. */
+    private const val SIZE = 160
+
+    // About 1/16 of the app's memory for thumbnails in use, the least recently shown dropped first.
+    private val memory = object : LruCache<String, ImageBitmap>((Runtime.getRuntime().maxMemory() / 16).toInt()) {
+        override fun sizeOf(key: String, value: ImageBitmap) = value.width * value.height * 4
+    }
+
+    // At most two files read at once, so a fast scroll doesn't flood the storage.
+    private val loading = Dispatchers.IO.limitedParallelism(2)
+
+    /** The thumbnail of [file] if it is in memory already, without waiting. */
+    fun cached(file: SongFile): ImageBitmap? = memory.get(key(file))
+
+    /** The thumbnail of [file], or null when it has no embedded picture. */
+    suspend fun load(context: Context, folder: Uri, file: SongFile): ImageBitmap? = withContext(loading) {
+        val key = key(file)
+        memory.get(key)?.let { return@withContext it }
+
+        val dir = File(context.cacheDir, "covers").apply { mkdirs() }
+        val saved = File(dir, "$key.jpg")
+        val bitmap = if (saved.exists()) {
+            // An empty file means "looked before, no picture".
+            if (saved.length() == 0L) null else BitmapFactory.decodeFile(saved.path)
+        } else {
+            val picture = readEmbedded(context, MusicFolder.fileUri(folder, file))
+            picture?.let(::thumbnail).also { write(it, saved) }
+        }
+        bitmap?.asImageBitmap()?.also { memory.put(key, it) }
+    }
+
+    /** Decodes [bytes] as a thumbnail whose shorter side is [SIZE] pixels, or null if it isn't an image. */
+    fun thumbnail(bytes: ByteArray): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+        val options = BitmapFactory.Options().apply { inSampleSize = sampleSize(bounds.outWidth, bounds.outHeight, SIZE) }
+        val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options) ?: return null
+        val scale = SIZE.toFloat() / minOf(decoded.width, decoded.height)
+        if (scale >= 1f) return decoded
+        return decoded.scale((decoded.width * scale).roundToInt(), (decoded.height * scale).roundToInt())
+    }
+
+    private fun readEmbedded(context: Context, file: Uri): ByteArray? {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(context, file)
+            retriever.embeddedPicture
+        } catch (_: RuntimeException) {
+            null
+        } finally {
+            runCatching { retriever.release() }
+        }
+    }
+
+    /** Saves [thumbnail], or an empty file when there is none. Written beside and renamed, so a half written file never shows. */
+    private fun write(thumbnail: Bitmap?, file: File) {
+        val temp = File(file.path + ".tmp")
+        runCatching {
+            temp.outputStream().use { thumbnail?.compress(Bitmap.CompressFormat.JPEG, 85, it) }
+            temp.renameTo(file)
+        }
+    }
+
+    /** Changes when the file changes, so an edited cover is read again. */
+    private fun key(file: SongFile): String {
+        val digest = MessageDigest.getInstance("SHA-1")
+            .digest("${file.documentId}|${file.size}|${file.lastModified}".toByteArray())
+        return digest.joinToString("") { "%02x".format(it) }
+    }
+}
+
+/**
+ * The biggest power of two to divide the image size by while decoding, keeping the shorter side
+ * at least [target] pixels. Decoding a fraction of the pixels saves memory and time.
+ */
+fun sampleSize(width: Int, height: Int, target: Int): Int {
+    var sample = 1
+    while (minOf(width, height) / (sample * 2) >= target) {
+        sample *= 2
+    }
+    return sample
+}
