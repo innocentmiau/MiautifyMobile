@@ -2,13 +2,14 @@ package io.github.innocentmiau.miautify.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ListItem
@@ -23,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -30,6 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.media3.common.Player
 import io.github.innocentmiau.miautify.R
 import io.github.innocentmiau.miautify.library.MusicFolder
 import io.github.innocentmiau.miautify.library.ScanState
@@ -38,12 +41,16 @@ import io.github.innocentmiau.miautify.library.SongFile
 import io.github.innocentmiau.miautify.library.SongTags
 import io.github.innocentmiau.miautify.library.formatDuration
 import io.github.innocentmiau.miautify.library.scanLibrary
+import io.github.innocentmiau.miautify.playback.playSongs
 import io.github.innocentmiau.miautify.settings.Settings
 import io.github.innocentmiau.miautify.ui.theme.MiautifyTheme
 
-/** Shows the songs in the chosen music folder and lets the user pick one, remembered between launches. */
+/**
+ * Shows the songs in the chosen music folder and lets the user pick one, remembered between
+ * launches. Tapping a song plays the whole list from there on [player].
+ */
 @Composable
-fun MusicFolderScreen(modifier: Modifier = Modifier) {
+fun MusicFolderScreen(player: Player?, playingSongId: String?, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val settings = remember { Settings(context) }
     var folder by remember {
@@ -69,8 +76,13 @@ fun MusicFolderScreen(modifier: Modifier = Modifier) {
     MusicFolderContent(
         folderName = folderName,
         scan = scan,
+        playingSongId = playingSongId,
         // Opens the picker inside the current folder, so changing it is quicker.
         onChooseFolder = { picker.launch(folder) },
+        onPlaySong = { songs, index ->
+            val current = folder
+            if (player != null && current != null) player.playSongs(current, songs, index)
+        },
         modifier = modifier
     )
 }
@@ -80,7 +92,9 @@ fun MusicFolderScreen(modifier: Modifier = Modifier) {
 private fun MusicFolderContent(
     folderName: String?,
     scan: ScanState?,
+    playingSongId: String?,
     onChooseFolder: () -> Unit,
+    onPlaySong: (songs: List<Song>, index: Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     when (scan) {
@@ -91,7 +105,7 @@ private fun MusicFolderContent(
             if (scan.songs.isEmpty()) {
                 Message(stringResource(R.string.library_no_songs), onChooseFolder, modifier)
             } else {
-                SongList(folderName, scan, onChooseFolder, modifier)
+                SongList(folderName, scan, playingSongId, onChooseFolder, onPlaySong, modifier)
             }
     }
 }
@@ -130,7 +144,9 @@ private fun Scanning(modifier: Modifier = Modifier) {
 private fun SongList(
     folderName: String?,
     scan: ScanState.Done,
+    playingSongId: String?,
     onChooseFolder: () -> Unit,
+    onPlaySong: (songs: List<Song>, index: Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val songs = scan.songs
@@ -163,15 +179,19 @@ private fun SongList(
 
         // Only the rows on screen are built, so a library of thousands of songs scrolls smoothly.
         LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(songs, key = { it.file.documentId }) { song ->
-                SongRow(song)
+            itemsIndexed(songs, key = { _, song -> song.file.documentId }) { index, song ->
+                SongRow(
+                    song = song,
+                    isPlaying = song.file.documentId == playingSongId,
+                    onClick = { onPlaySong(songs, index) }
+                )
             }
         }
     }
 }
 
 @Composable
-private fun SongRow(song: Song) {
+private fun SongRow(song: Song, isPlaying: Boolean, onClick: () -> Unit) {
     // "Artist · Album", or the folder path until the tags are read or when there are none.
     val details = listOfNotNull(song.tags?.artist, song.tags?.album)
         .joinToString(" · ")
@@ -179,8 +199,15 @@ private fun SongRow(song: Song) {
     val duration = song.tags?.durationMs
 
     ListItem(
+        modifier = Modifier.clickable(onClick = onClick),
         headlineContent = {
-            Text(song.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                text = song.title,
+                // The playing song stands out in the theme's accent color.
+                color = if (isPlaying) MaterialTheme.colorScheme.primary else Color.Unspecified,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         },
         supportingContent = details.takeIf { it.isNotEmpty() }?.let {
             { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) }
@@ -195,7 +222,7 @@ private fun SongRow(song: Song) {
 @Composable
 private fun NoFolderPreview() {
     MiautifyTheme {
-        MusicFolderContent(folderName = null, scan = null, onChooseFolder = {}, modifier = Modifier.fillMaxSize())
+        MusicFolderContent(folderName = null, scan = null, playingSongId = null, onChooseFolder = {}, onPlaySong = { _, _ -> }, modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -203,7 +230,7 @@ private fun NoFolderPreview() {
 @Composable
 private fun ScanningPreview() {
     MiautifyTheme {
-        MusicFolderContent(folderName = "Music", scan = ScanState.Scanning, onChooseFolder = {}, modifier = Modifier.fillMaxSize())
+        MusicFolderContent(folderName = "Music", scan = ScanState.Scanning, playingSongId = null, onChooseFolder = {}, onPlaySong = { _, _ -> }, modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -219,7 +246,9 @@ private fun SongListPreview() {
         MusicFolderContent(
             folderName = "Music",
             scan = ScanState.Done(songs, tagsRead = 2),
+            playingSongId = "2",
             onChooseFolder = {},
+            onPlaySong = { _, _ -> },
             modifier = Modifier.fillMaxSize()
         )
     }
