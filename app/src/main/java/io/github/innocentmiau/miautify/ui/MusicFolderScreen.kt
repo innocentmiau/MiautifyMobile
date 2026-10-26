@@ -17,32 +17,24 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.Player
 import io.github.innocentmiau.miautify.R
-import io.github.innocentmiau.miautify.library.MusicFolder
 import io.github.innocentmiau.miautify.library.ScanState
 import io.github.innocentmiau.miautify.library.Song
 import io.github.innocentmiau.miautify.library.SongFile
 import io.github.innocentmiau.miautify.library.SongTags
 import io.github.innocentmiau.miautify.library.formatDuration
-import io.github.innocentmiau.miautify.library.scanLibrary
 import io.github.innocentmiau.miautify.playback.playSongs
-import io.github.innocentmiau.miautify.settings.Settings
 import io.github.innocentmiau.miautify.ui.theme.MiautifyTheme
 
 /**
@@ -50,44 +42,35 @@ import io.github.innocentmiau.miautify.ui.theme.MiautifyTheme
  * launches. Tapping a song plays the whole list from there on [player].
  */
 @Composable
-fun MusicFolderScreen(player: Player?, playingSongId: String?, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val settings = remember { Settings(context) }
-    var folder by remember {
-        mutableStateOf(settings.musicFolder?.takeIf { MusicFolder.hasAccess(context, it) })
-    }
-    val folderName = remember(folder) { folder?.let { MusicFolder.displayName(context, it) } }
-
-    // Starts a new scan whenever the folder changes, and cancels the old one.
-    val scan by produceState<ScanState?>(initialValue = null, folder) {
-        val current = folder ?: return@produceState
-        scanLibrary(context, current).collect { value = it }
-    }
-
+fun MusicFolderScreen(
+    player: Player?,
+    playingSongId: String?,
+    modifier: Modifier = Modifier,
+    // Gives the same LibraryViewModel back after a rotation, instead of a new one.
+    library: LibraryViewModel = viewModel()
+) {
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { picked ->
         // Null when the user backs out of the picker: keep the current folder.
         if (picked != null) {
-            if (picked != folder) {
+            if (picked != library.folder) {
                 // The queue holds songs from the old folder, which the app can't read once
-                // keepAccess gives that folder back, so the next song would fail. Clearing it
-                // also stops playback and deletes the saved queue.
+                // chooseFolder gives that folder back, so the next song would fail. Clearing
+                // it also stops playback and deletes the saved queue.
                 player?.clearMediaItems()
             }
-            MusicFolder.keepAccess(context, picked, previous = folder)
-            settings.musicFolder = picked
-            folder = picked
+            library.chooseFolder(picked)
         }
     }
 
     MusicFolderContent(
-        folderName = folderName,
-        scan = scan,
+        folderName = library.folderName,
+        scan = library.scan,
         playingSongId = playingSongId,
         // Opens the picker inside the current folder, so changing it is quicker.
-        onChooseFolder = { picker.launch(folder) },
+        onChooseFolder = { picker.launch(library.folder) },
         onPlaySong = { songs, index ->
-            val current = folder
-            if (player != null && current != null) player.playSongs(current, songs, index)
+            val folder = library.folder
+            if (player != null && folder != null) player.playSongs(folder, songs, index)
         },
         modifier = modifier
     )
