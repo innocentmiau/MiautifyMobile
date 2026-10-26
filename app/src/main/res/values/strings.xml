@@ -6,6 +6,7 @@
     <string name="library_scanning">Scanning…</string>
     <string name="library_scan_failed">Could not read this folder.</string>
     <string name="library_no_songs">No mp3 files in this folder.</string>
+    <string name="library_reading_tags">Reading tags: %1$d of %2$d</string>
     <plurals name="library_song_count">
         <item quantity="one">%d song</item>
         <item quantity="other">%d songs</item>

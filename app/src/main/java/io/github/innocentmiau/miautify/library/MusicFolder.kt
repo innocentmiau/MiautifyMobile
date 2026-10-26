@@ -40,6 +40,10 @@ object MusicFolder {
         }
     }.getOrNull()
 
+    /** The URI that opens [file], a file found by [scan] in [folder]. */
+    fun fileUri(folder: Uri, file: SongFile): Uri =
+        DocumentsContract.buildDocumentUriUsingTree(folder, file.documentId)
+
     /**
      * Lists every mp3 in [folder] and its subfolders. Runs on a background thread, and stops
      * early when the caller no longer needs the result. Throws when a folder can't be read.

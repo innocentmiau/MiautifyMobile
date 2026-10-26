@@ -32,17 +32,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import io.github.innocentmiau.miautify.R
 import io.github.innocentmiau.miautify.library.MusicFolder
+import io.github.innocentmiau.miautify.library.ScanState
+import io.github.innocentmiau.miautify.library.Song
 import io.github.innocentmiau.miautify.library.SongFile
+import io.github.innocentmiau.miautify.library.SongTags
+import io.github.innocentmiau.miautify.library.formatDuration
+import io.github.innocentmiau.miautify.library.scanLibrary
 import io.github.innocentmiau.miautify.settings.Settings
 import io.github.innocentmiau.miautify.ui.theme.MiautifyTheme
-import kotlin.coroutines.cancellation.CancellationException
-
-/** Where the scan of the music folder is. */
-private sealed interface ScanState {
-    data object Scanning : ScanState
-    data class Done(val songs: List<SongFile>) : ScanState
-    data object Failed : ScanState
-}
 
 /** Shows the songs in the chosen music folder and lets the user pick one, remembered between launches. */
 @Composable
@@ -57,15 +54,7 @@ fun MusicFolderScreen(modifier: Modifier = Modifier) {
     // Starts a new scan whenever the folder changes, and cancels the old one.
     val scan by produceState<ScanState?>(initialValue = null, folder) {
         val current = folder ?: return@produceState
-        value = ScanState.Scanning
-        value = try {
-            ScanState.Done(MusicFolder.scan(context, current))
-        } catch (e: CancellationException) {
-            // Not a failure: the scan is no longer needed. Let it stop.
-            throw e
-        } catch (_: Exception) {
-            ScanState.Failed
-        }
+        scanLibrary(context, current).collect { value = it }
     }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { picked ->
@@ -102,7 +91,7 @@ private fun MusicFolderContent(
             if (scan.songs.isEmpty()) {
                 Message(stringResource(R.string.library_no_songs), onChooseFolder, modifier)
             } else {
-                SongList(folderName, scan.songs, onChooseFolder, modifier)
+                SongList(folderName, scan, onChooseFolder, modifier)
             }
     }
 }
@@ -140,10 +129,11 @@ private fun Scanning(modifier: Modifier = Modifier) {
 @Composable
 private fun SongList(
     folderName: String?,
-    songs: List<SongFile>,
+    scan: ScanState.Done,
     onChooseFolder: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val songs = scan.songs
     Column(modifier = modifier) {
         Row(
             modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp),
@@ -157,7 +147,11 @@ private fun SongList(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = pluralStringResource(R.plurals.library_song_count, songs.size, songs.size),
+                    text = if (scan.readingTags) {
+                        stringResource(R.string.library_reading_tags, scan.tagsRead, songs.size)
+                    } else {
+                        pluralStringResource(R.plurals.library_song_count, songs.size, songs.size)
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -169,18 +163,32 @@ private fun SongList(
 
         // Only the rows on screen are built, so a library of thousands of songs scrolls smoothly.
         LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(songs, key = { it.documentId }) { song ->
-                ListItem(
-                    headlineContent = {
-                        Text(song.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    },
-                    supportingContent = song.folder.takeIf { it.isNotEmpty() }?.let { folder ->
-                        { Text(folder, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                    }
-                )
+            items(songs, key = { it.file.documentId }) { song ->
+                SongRow(song)
             }
         }
     }
+}
+
+@Composable
+private fun SongRow(song: Song) {
+    // "Artist · Album", or the folder path until the tags are read or when there are none.
+    val details = listOfNotNull(song.tags?.artist, song.tags?.album)
+        .joinToString(" · ")
+        .ifEmpty { song.file.folder }
+    val duration = song.tags?.durationMs
+
+    ListItem(
+        headlineContent = {
+            Text(song.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        },
+        supportingContent = details.takeIf { it.isNotEmpty() }?.let {
+            { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        },
+        trailingContent = duration?.let {
+            { Text(formatDuration(it), style = MaterialTheme.typography.bodySmall) }
+        }
+    )
 }
 
 @Preview(showBackground = true)
@@ -203,11 +211,16 @@ private fun ScanningPreview() {
 @Composable
 private fun SongListPreview() {
     val songs = listOf(
-        SongFile("1", "Intro.mp3", ""),
-        SongFile("2", "First Song.mp3", "Some Album"),
-        SongFile("3", "Second Song.mp3", "Some Album/Disc 2")
+        Song(SongFile("1", "01 intro.mp3", "Some Album"), SongTags("Intro", "Some Artist", "Some Album", 95_000)),
+        Song(SongFile("2", "02 first.mp3", "Some Album"), SongTags("First Song", "Some Artist", "Some Album", 241_000)),
+        Song(SongFile("3", "Untagged Song.mp3", "Some Album/Disc 2"), tags = null)
     )
     MiautifyTheme {
-        MusicFolderContent(folderName = "Music", scan = ScanState.Done(songs), onChooseFolder = {}, modifier = Modifier.fillMaxSize())
+        MusicFolderContent(
+            folderName = "Music",
+            scan = ScanState.Done(songs, tagsRead = 2),
+            onChooseFolder = {},
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
