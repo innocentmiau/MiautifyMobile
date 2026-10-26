@@ -3,17 +3,29 @@ package io.github.innocentmiau.miautify.playback
 import android.content.Intent
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * Owns the player, so music keeps playing with the screen off or the app closed. The media
  * session gives the notification, lock screen and headphone or Bluetooth buttons for free.
  * The app's screens talk to it through a MediaController (see [rememberPlayer]).
+ *
+ * The queue and position are saved on every change and loaded back, paused, when the
+ * service starts again, so a phone that closed the app overnight continues where it was.
  */
 class PlaybackService : MediaSessionService() {
     private var session: MediaSession? = null
+    private lateinit var queueStore: QueueStore
+
+    // Writes the queue file in the background, one write at a time and in order.
+    private val saveScope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
 
     override fun onCreate() {
         super.onCreate()
@@ -29,6 +41,23 @@ class PlaybackService : MediaSessionService() {
             // Keep the CPU awake while playing with the screen off. Files are local, so no Wi-Fi lock.
             .setWakeMode(C.WAKE_MODE_LOCAL)
             .build()
+
+        queueStore = QueueStore(this)
+        queueStore.restore(player)
+        player.addListener(object : Player.Listener {
+            override fun onEvents(player: Player, events: Player.Events) {
+                // New queue, next song, play or pause, or a seek. Not while time just passes.
+                if (events.containsAny(
+                        Player.EVENT_TIMELINE_CHANGED,
+                        Player.EVENT_MEDIA_ITEM_TRANSITION,
+                        Player.EVENT_IS_PLAYING_CHANGED,
+                        Player.EVENT_POSITION_DISCONTINUITY
+                    )
+                ) {
+                    saveQueue(player)
+                }
+            }
+        })
         session = MediaSession.Builder(this, player).build()
     }
 
@@ -44,10 +73,19 @@ class PlaybackService : MediaSessionService() {
 
     override fun onDestroy() {
         session?.run {
+            // Last save with the exact position. It goes through the same queue as the others,
+            // so an older save still waiting can't land after it. Not cancelled: it must finish.
+            saveQueue(player)
             player.release()
             release()
         }
         session = null
         super.onDestroy()
+    }
+
+    private fun saveQueue(player: Player) {
+        // Read the player here on the main thread, then write the file in the background.
+        val queue = queueStore.snapshot(player)
+        saveScope.launch { queueStore.write(queue) }
     }
 }

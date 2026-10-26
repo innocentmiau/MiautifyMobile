@@ -40,6 +40,10 @@ object MusicFolder {
         }
     }.getOrNull()
 
+    /** The picked folder a file URI from [fileUri] belongs to, to check that access to it is still held. */
+    fun folderOf(file: Uri): Uri =
+        DocumentsContract.buildTreeDocumentUri(file.authority, DocumentsContract.getTreeDocumentId(file))
+
     /** The URI that opens [file], a file found by [scan] in [folder]. */
     fun fileUri(folder: Uri, file: SongFile): Uri =
         DocumentsContract.buildDocumentUriUsingTree(folder, file.documentId)
