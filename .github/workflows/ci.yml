@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# The token only needs to read the repo. Give more only to jobs that need it.
+permissions:
+  contents: read
+
+# A newer push to the same branch or PR cancels the older run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Fails if gradle-wrapper.jar is not an official Gradle release, so a changed
+      # jar in a PR can't run its own code here.
+      - uses: gradle/actions/wrapper-validation@v6
+
+      # Same JDK as gradle/gradle-daemon-jvm.properties, and caches Gradle downloads.
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: gradle
+
+      - run: ./gradlew assembleDebug testDebugUnitTest lintDebug
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: miautify-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      # Only when something failed, so the reason can be read without a local build.
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: reports
+          path: app/build/reports/
