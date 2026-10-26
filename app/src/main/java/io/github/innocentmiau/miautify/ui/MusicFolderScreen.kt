@@ -67,6 +67,12 @@ fun MusicFolderScreen(player: Player?, playingSongId: String?, modifier: Modifie
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { picked ->
         // Null when the user backs out of the picker: keep the current folder.
         if (picked != null) {
+            if (picked != folder) {
+                // The queue holds songs from the old folder, which the app can't read once
+                // keepAccess gives that folder back, so the next song would fail. Clearing it
+                // also stops playback and deletes the saved queue.
+                player?.clearMediaItems()
+            }
             MusicFolder.keepAccess(context, picked, previous = folder)
             settings.musicFolder = picked
             folder = picked
