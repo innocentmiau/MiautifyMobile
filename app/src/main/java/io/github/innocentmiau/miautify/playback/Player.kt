@@ -55,7 +55,10 @@ data class NowPlaying(
     val title: String,
     val artist: String?,
     val isPlaying: Boolean,
-    val durationMs: Long?
+    val durationMs: Long?,
+    val shuffle: Boolean = false,
+    /** One of Player.REPEAT_MODE_OFF, REPEAT_MODE_ALL or REPEAT_MODE_ONE. */
+    val repeatMode: Int = Player.REPEAT_MODE_OFF
 )
 
 /** The player's current song, updated on every change; null when nothing is loaded. */
@@ -83,7 +86,9 @@ private fun Player.nowPlaying(): NowPlaying? {
         title = item.mediaMetadata.title?.toString().orEmpty(),
         artist = item.mediaMetadata.artist?.toString(),
         isPlaying = isPlaying,
-        durationMs = duration.takeIf { it != C.TIME_UNSET }
+        durationMs = duration.takeIf { it != C.TIME_UNSET },
+        shuffle = shuffleModeEnabled,
+        repeatMode = repeatMode
     )
 }
 

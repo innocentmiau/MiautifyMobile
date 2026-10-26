@@ -14,7 +14,18 @@ class Settings(context: Context) {
         get() = prefs.getString(KEY_MUSIC_FOLDER, null)?.toUri()
         set(value) = prefs.edit { putString(KEY_MUSIC_FOLDER, value?.toString()) }
 
+    var shuffle: Boolean
+        get() = prefs.getBoolean(KEY_SHUFFLE, false)
+        set(value) = prefs.edit { putBoolean(KEY_SHUFFLE, value) }
+
+    /** One of Media3's Player.REPEAT_MODE_ values: off (0), one (1) or all (2). */
+    var repeatMode: Int
+        get() = prefs.getInt(KEY_REPEAT_MODE, 0)
+        set(value) = prefs.edit { putInt(KEY_REPEAT_MODE, value) }
+
     private companion object {
         const val KEY_MUSIC_FOLDER = "music_folder"
+        const val KEY_SHUFFLE = "shuffle"
+        const val KEY_REPEAT_MODE = "repeat_mode"
     }
 }

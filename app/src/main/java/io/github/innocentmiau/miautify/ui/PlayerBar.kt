@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconToggleButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -23,12 +25,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.media3.common.Player
 import io.github.innocentmiau.miautify.R
 import io.github.innocentmiau.miautify.library.formatDuration
 import io.github.innocentmiau.miautify.playback.NowPlaying
 import io.github.innocentmiau.miautify.ui.theme.MiautifyTheme
 
-/** The bar at the bottom: a seek bar with times, the playing song, previous, play or pause, and next. */
+/**
+ * The bar at the bottom: a seek bar with times, the playing song, and shuffle, previous,
+ * play or pause, next and repeat.
+ */
 @Composable
 fun PlayerBar(
     nowPlaying: NowPlaying,
@@ -37,6 +43,8 @@ fun PlayerBar(
     onPrevious: () -> Unit,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
+    onShuffle: (enabled: Boolean) -> Unit,
+    onRepeat: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -71,6 +79,10 @@ fun PlayerBar(
                         )
                     }
                 }
+                // A toggle button: tinted in the accent color when on, and read out as on or off.
+                IconToggleButton(checked = nowPlaying.shuffle, onCheckedChange = onShuffle) {
+                    Icon(painterResource(R.drawable.ic_shuffle), stringResource(R.string.player_shuffle))
+                }
                 IconButton(onClick = onPrevious) {
                     Icon(painterResource(R.drawable.ic_skip_previous), stringResource(R.string.player_previous))
                 }
@@ -84,8 +96,26 @@ fun PlayerBar(
                 IconButton(onClick = onNext) {
                     Icon(painterResource(R.drawable.ic_skip_next), stringResource(R.string.player_next))
                 }
+                RepeatButton(repeatMode = nowPlaying.repeatMode, onClick = onRepeat)
             }
         }
+    }
+}
+
+/** Three states, so not a toggle: a plain button whose icon, color and description show the mode. */
+@Composable
+private fun RepeatButton(repeatMode: Int, onClick: () -> Unit) {
+    val (icon, description) = when (repeatMode) {
+        Player.REPEAT_MODE_ALL -> R.drawable.ic_repeat to R.string.player_repeat_all
+        Player.REPEAT_MODE_ONE -> R.drawable.ic_repeat_one to R.string.player_repeat_one
+        else -> R.drawable.ic_repeat to R.string.player_repeat_off
+    }
+    IconButton(onClick = onClick) {
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = stringResource(description),
+            tint = if (repeatMode == Player.REPEAT_MODE_OFF) LocalContentColor.current else MaterialTheme.colorScheme.primary
+        )
     }
 }
 
@@ -131,12 +161,17 @@ private fun SeekBar(positionMs: Long, durationMs: Long?, onSeek: (Long) -> Unit)
 private fun PlayerBarPreview() {
     MiautifyTheme {
         PlayerBar(
-            nowPlaying = NowPlaying("1", "First Song", "Some Artist", isPlaying = true, durationMs = 198_000),
+            nowPlaying = NowPlaying(
+                "1", "First Song", "Some Artist", isPlaying = true, durationMs = 198_000,
+                shuffle = true, repeatMode = Player.REPEAT_MODE_ONE
+            ),
             positionMs = 67_000,
             onSeek = {},
             onPrevious = {},
             onPlayPause = {},
-            onNext = {}
+            onNext = {},
+            onShuffle = {},
+            onRepeat = {}
         )
     }
 }

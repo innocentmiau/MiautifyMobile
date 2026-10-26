@@ -12,6 +12,10 @@
     <string name="player_pause">Pause</string>
     <string name="player_previous">Previous</string>
     <string name="player_next">Next</string>
+    <string name="player_shuffle">Shuffle</string>
+    <string name="player_repeat_off">Repeat: off</string>
+    <string name="player_repeat_all">Repeat: all</string>
+    <string name="player_repeat_one">Repeat: one song</string>
     <plurals name="library_song_count">
         <item quantity="one">%d song</item>
         <item quantity="other">%d songs</item>

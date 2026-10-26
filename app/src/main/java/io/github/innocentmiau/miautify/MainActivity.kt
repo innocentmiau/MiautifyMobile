@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import io.github.innocentmiau.miautify.playback.nextRepeatMode
 import io.github.innocentmiau.miautify.playback.rememberNowPlaying
 import io.github.innocentmiau.miautify.playback.rememberPlayer
 import io.github.innocentmiau.miautify.playback.rememberPositionMs
@@ -45,7 +46,9 @@ fun MiautifyApp() {
                     onSeek = { player.seekTo(it) },
                     onPrevious = { player.seekToPrevious() },
                     onPlayPause = { if (player.isPlaying) player.pause() else player.play() },
-                    onNext = { player.seekToNext() }
+                    onNext = { player.seekToNext() },
+                    onShuffle = { player.shuffleModeEnabled = it },
+                    onRepeat = { player.repeatMode = nextRepeatMode(player.repeatMode) }
                 )
             }
         }

@@ -7,6 +7,7 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import io.github.innocentmiau.miautify.settings.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -42,6 +43,11 @@ class PlaybackService : MediaSessionService() {
             .setWakeMode(C.WAKE_MODE_LOCAL)
             .build()
 
+        // Shuffle and repeat are kept apart from the queue, so they stay when the queue is cleared.
+        val settings = Settings(this)
+        player.shuffleModeEnabled = settings.shuffle
+        player.repeatMode = settings.repeatMode
+
         queueStore = QueueStore(this)
         queueStore.restore(player)
         player.addListener(object : Player.Listener {
@@ -56,6 +62,15 @@ class PlaybackService : MediaSessionService() {
                 ) {
                     saveQueue(player)
                 }
+            }
+
+            // Saved here and not in the app, so a change from the notification or a car counts too.
+            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                settings.shuffle = shuffleModeEnabled
+            }
+
+            override fun onRepeatModeChanged(repeatMode: Int) {
+                settings.repeatMode = repeatMode
             }
         })
         session = MediaSession.Builder(this, player).build()
