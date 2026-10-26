@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import io.github.innocentmiau.miautify.ui.MusicFolderScreen
 import io.github.innocentmiau.miautify.ui.theme.MiautifyTheme
 
@@ -32,7 +31,6 @@ fun MiautifyApp() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp)
         )
     }
 }

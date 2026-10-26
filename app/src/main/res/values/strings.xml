@@ -2,5 +2,12 @@
     <string name="app_name">Miautify</string>
     <string name="library_empty">Nothing to play yet.</string>
     <string name="library_choose_folder">Choose music folder</string>
+    <string name="library_change_folder">Change folder</string>
+    <string name="library_scanning">Scanning…</string>
     <string name="library_scan_failed">Could not read this folder.</string>
+    <string name="library_no_songs">No mp3 files in this folder.</string>
+    <plurals name="library_song_count">
+        <item quantity="one">%d song</item>
+        <item quantity="other">%d songs</item>
+    </plurals>
 </resources>
