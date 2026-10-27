@@ -7,10 +7,12 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import io.github.innocentmiau.miautify.data.MiautifyDatabase
 import io.github.innocentmiau.miautify.settings.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
@@ -27,6 +29,9 @@ class PlaybackService : MediaSessionService() {
 
     // Writes the queue file in the background, one write at a time and in order.
     private val saveScope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
+
+    // For the play history, which reads the player and so starts on the main thread.
+    private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     override fun onCreate() {
         super.onCreate()
@@ -73,6 +78,7 @@ class PlaybackService : MediaSessionService() {
                 settings.repeatMode = repeatMode
             }
         })
+        PlayTracker(player, MiautifyDatabase.get(this).plays(), mainScope)
         session = MediaSession.Builder(this, player).build()
     }
 
@@ -95,6 +101,8 @@ class PlaybackService : MediaSessionService() {
             release()
         }
         session = null
+        // Stops a play count still waiting for its 30 seconds: the music has stopped.
+        mainScope.cancel()
         super.onDestroy()
     }
 

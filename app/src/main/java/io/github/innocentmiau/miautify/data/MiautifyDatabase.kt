@@ -14,14 +14,20 @@ import androidx.room.RoomDatabase
  * 1. The songs table (scan cache).
  * 2. songs.folderCoverId. Room writes this migration itself, by comparing the saved layouts
  *    of versions 1 and 2: it only adds a column, so nothing is lost.
+ * 3. The plays table (play counts and last played times), also an auto-migration.
  */
 @Database(
-    entities = [SongEntity::class],
-    version = 2,
-    autoMigrations = [AutoMigration(from = 1, to = 2)]
+    entities = [SongEntity::class, PlayEntity::class],
+    version = 3,
+    autoMigrations = [
+        AutoMigration(from = 1, to = 2),
+        AutoMigration(from = 2, to = 3)
+    ]
 )
 abstract class MiautifyDatabase : RoomDatabase() {
     abstract fun songs(): SongDao
+
+    abstract fun plays(): PlayDao
 
     companion object {
         @Volatile
