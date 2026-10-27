@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -74,9 +75,13 @@ fun MiautifyApp() {
             }
         }
     ) { innerPadding ->
+        // consumeWindowInsets: the padding just applied (status bar at the top, the player bar
+        // at the bottom) counts as already handled, so a screen's imePadding() only adds the
+        // part of the keyboard that rises above it, instead of the whole keyboard on top.
         val screenModifier = Modifier
             .fillMaxSize()
             .padding(innerPadding)
+            .consumeWindowInsets(innerPadding)
         val kind = openKind
         val id = openId
         if (kind != null && id != null) {
