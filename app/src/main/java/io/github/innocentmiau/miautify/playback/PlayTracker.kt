@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 class PlayTracker(
     private val player: Player,
     private val plays: PlayDao,
+    private val recentPlays: RecentPlays,
     // Main thread: the player may only be read there. Room moves the writes off it.
     private val scope: CoroutineScope
 ) : Player.Listener {
@@ -53,6 +54,7 @@ class PlayTracker(
         if (!started) {
             started = true
             val now = System.currentTimeMillis()
+            recentPlays.started(songId, now)
             scope.launch { plays.markStarted(songId, now) }
         }
         if (counted) return

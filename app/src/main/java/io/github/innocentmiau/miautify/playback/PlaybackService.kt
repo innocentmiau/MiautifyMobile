@@ -48,6 +48,16 @@ class PlaybackService : MediaSessionService() {
             .setWakeMode(C.WAKE_MODE_LOCAL)
             .build()
 
+        // Before the queue is restored, so the restored list gets a smart shuffle too.
+        val plays = MiautifyDatabase.get(this).plays()
+        val recentPlays = RecentPlays()
+        val smartShuffle = SmartShuffle(player, recentPlays)
+        mainScope.launch {
+            recentPlays.load(plays.all().mapNotNull { row -> row.lastPlayedAt?.let { row.documentId to it } }.toMap())
+            // The first deal had no history yet: deal again now that it's known.
+            if (player.shuffleModeEnabled) smartShuffle.deal()
+        }
+
         // Shuffle and repeat are kept apart from the queue, so they stay when the queue is cleared.
         val settings = Settings(this)
         player.shuffleModeEnabled = settings.shuffle
@@ -78,7 +88,7 @@ class PlaybackService : MediaSessionService() {
                 settings.repeatMode = repeatMode
             }
         })
-        PlayTracker(player, MiautifyDatabase.get(this).plays(), mainScope)
+        PlayTracker(player, plays, recentPlays, mainScope)
         session = MediaSession.Builder(this, player).build()
     }
 
