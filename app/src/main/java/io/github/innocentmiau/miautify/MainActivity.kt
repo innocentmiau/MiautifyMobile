@@ -10,6 +10,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import io.github.innocentmiau.miautify.playback.nextRepeatMode
 import io.github.innocentmiau.miautify.playback.rememberArtwork
@@ -18,6 +22,7 @@ import io.github.innocentmiau.miautify.playback.rememberPlayer
 import io.github.innocentmiau.miautify.playback.rememberPositionMs
 import io.github.innocentmiau.miautify.ui.MusicFolderScreen
 import io.github.innocentmiau.miautify.ui.PlayerBar
+import io.github.innocentmiau.miautify.ui.SearchScreen
 import io.github.innocentmiau.miautify.ui.theme.MiautifyTheme
 
 class MainActivity : ComponentActivity() {
@@ -40,6 +45,7 @@ class MainActivity : ComponentActivity() {
 fun MiautifyApp() {
     val player = rememberPlayer()
     val nowPlaying = rememberNowPlaying(player)
+    var searching by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -62,12 +68,24 @@ fun MiautifyApp() {
             }
         }
     ) { innerPadding ->
-        MusicFolderScreen(
-            player = player,
-            playingSongId = nowPlaying?.songId,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        )
+        val screenModifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding)
+        // Two screens for now, so a flag is enough. Saveable: a rotation keeps you in search.
+        if (searching) {
+            SearchScreen(
+                player = player,
+                playingSongId = nowPlaying?.songId,
+                onClose = { searching = false },
+                modifier = screenModifier
+            )
+        } else {
+            MusicFolderScreen(
+                player = player,
+                playingSongId = nowPlaying?.songId,
+                onSearch = { searching = true },
+                modifier = screenModifier
+            )
+        }
     }
 }

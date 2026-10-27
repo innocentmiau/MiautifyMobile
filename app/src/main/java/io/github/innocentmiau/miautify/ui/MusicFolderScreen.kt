@@ -15,6 +15,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -23,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,6 +53,7 @@ import io.github.innocentmiau.miautify.ui.theme.TextBright
 fun MusicFolderScreen(
     player: Player?,
     playingSongId: String?,
+    onSearch: () -> Unit,
     modifier: Modifier = Modifier,
     // Gives the same LibraryViewModel back after a rotation, instead of a new one.
     library: LibraryViewModel = viewModel()
@@ -74,6 +78,7 @@ fun MusicFolderScreen(
         sorting = Sorting(library.sortOrder, library.sortReversed, library.playCounts),
         playingSongId = playingSongId,
         onSort = library::sortBy,
+        onSearch = onSearch,
         // Opens the picker inside the current folder, so changing it is quicker.
         onChooseFolder = { picker.launch(library.folder) },
         onPlaySong = { songs, index ->
@@ -93,6 +98,7 @@ private fun MusicFolderContent(
     sorting: Sorting,
     playingSongId: String?,
     onSort: (SortOrder, reversed: Boolean) -> Unit,
+    onSearch: () -> Unit,
     onChooseFolder: () -> Unit,
     onPlaySong: (songs: List<Song>, index: Int) -> Unit,
     modifier: Modifier = Modifier
@@ -105,7 +111,7 @@ private fun MusicFolderContent(
             if (scan.songs.isEmpty()) {
                 Message(stringResource(R.string.library_no_songs), onChooseFolder, modifier)
             } else {
-                SongList(folder, folderName, scan, sorting, playingSongId, onSort, onChooseFolder, onPlaySong, modifier)
+                SongList(folder, folderName, scan, sorting, playingSongId, onSort, onSearch, onChooseFolder, onPlaySong, modifier)
             }
     }
 }
@@ -148,6 +154,7 @@ private fun SongList(
     sorting: Sorting,
     playingSongId: String?,
     onSort: (SortOrder, reversed: Boolean) -> Unit,
+    onSearch: () -> Unit,
     onChooseFolder: () -> Unit,
     onPlaySong: (songs: List<Song>, index: Int) -> Unit,
     modifier: Modifier = Modifier
@@ -179,6 +186,9 @@ private fun SongList(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            IconButton(onClick = onSearch) {
+                Icon(painterResource(R.drawable.ic_search), stringResource(R.string.search))
+            }
             SortMenu(sorting.order, sorting.reversed, onSort)
             TextButton(onClick = onChooseFolder) {
                 Text(stringResource(R.string.library_change_folder))
@@ -205,46 +215,11 @@ private fun SongList(
     }
 }
 
-@Composable
-private fun SongRow(folder: Uri?, song: Song, playCount: Int?, isPlaying: Boolean, onClick: () -> Unit) {
-    // "Artist · Album", or the folder path until the tags are read or when there are none.
-    // Starts with "12 plays" when [playCount] is given.
-    val plays = playCount?.let { pluralStringResource(R.plurals.library_play_count, it, it) }
-    val details = listOfNotNull(song.tags?.artist, song.tags?.album)
-        .joinToString(" · ")
-        .ifEmpty { song.file.folder }
-        .let { tags -> listOfNotNull(plays, tags.takeIf { it.isNotEmpty() }).joinToString(" · ") }
-    val duration = song.tags?.durationMs
-
-    ListItem(
-        modifier = Modifier.clickable(onClick = onClick),
-        // The playing song stands out like Discord's selected channel: a lighter row and a brighter title.
-        colors = if (isPlaying) {
-            ListItemDefaults.colors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                headlineColor = TextBright
-            )
-        } else {
-            ListItemDefaults.colors()
-        },
-        leadingContent = { CoverImage(rememberCover(folder, song.file)) },
-        headlineContent = {
-            Text(song.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        },
-        supportingContent = details.takeIf { it.isNotEmpty() }?.let {
-            { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-        },
-        trailingContent = duration?.let {
-            { Text(formatDuration(it), style = MaterialTheme.typography.bodySmall) }
-        }
-    )
-}
-
 @Preview(showBackground = true)
 @Composable
 private fun NoFolderPreview() {
     MiautifyTheme {
-        MusicFolderContent(folder = null, folderName = null, scan = null, sorting = Sorting(), playingSongId = null, onSort = { _, _ -> }, onChooseFolder = {}, onPlaySong = { _, _ -> }, modifier = Modifier.fillMaxSize())
+        MusicFolderContent(folder = null, folderName = null, scan = null, sorting = Sorting(), playingSongId = null, onSort = { _, _ -> }, onSearch = {}, onChooseFolder = {}, onPlaySong = { _, _ -> }, modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -252,7 +227,7 @@ private fun NoFolderPreview() {
 @Composable
 private fun ScanningPreview() {
     MiautifyTheme {
-        MusicFolderContent(folder = null, folderName = "Music", scan = ScanState.Scanning, sorting = Sorting(), playingSongId = null, onSort = { _, _ -> }, onChooseFolder = {}, onPlaySong = { _, _ -> }, modifier = Modifier.fillMaxSize())
+        MusicFolderContent(folder = null, folderName = "Music", scan = ScanState.Scanning, sorting = Sorting(), playingSongId = null, onSort = { _, _ -> }, onSearch = {}, onChooseFolder = {}, onPlaySong = { _, _ -> }, modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -271,6 +246,7 @@ private fun SongListPreview() {
             scan = ScanState.Done(songs, tagsToRead = 3, tagsRead = 2),
             sorting = Sorting(),
             onSort = { _, _ -> },
+            onSearch = {},
             playingSongId = "2",
             onChooseFolder = {},
             onPlaySong = { _, _ -> },

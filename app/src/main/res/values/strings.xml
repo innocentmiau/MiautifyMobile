@@ -16,6 +16,12 @@
     <string name="player_repeat_off">Repeat: off</string>
     <string name="player_repeat_all">Repeat: all</string>
     <string name="player_repeat_one">Repeat: one song</string>
+    <string name="back">Back</string>
+    <string name="search">Search</string>
+    <string name="search_placeholder">Search songs</string>
+    <string name="search_hint">Find songs by title, artist or album, in any order.</string>
+    <string name="search_no_results">No songs match.</string>
+    <string name="search_clear">Clear search</string>
     <string name="sort">Sort</string>
     <string name="sort_folder">Folder order</string>
     <string name="sort_title">Title</string>
