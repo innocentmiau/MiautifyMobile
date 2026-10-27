@@ -28,6 +28,15 @@ class SongTest {
     }
 
     @Test
+    fun readsTheFirstNumberOfATrackOrDiscTag() {
+        assertEquals(3, parseTagNumber("3/12"))
+        assertEquals(3, parseTagNumber("03"))
+        assertEquals(1, parseTagNumber(" 1 / 2 "))
+        assertEquals(null, parseTagNumber("A1"))
+        assertEquals(null, parseTagNumber(null))
+    }
+
+    @Test
     fun formatsHoursFromOneHourUp() {
         assertEquals("1:00:00", formatDuration(3_600_000))
         assertEquals("1:02:03", formatDuration(3_723_000))

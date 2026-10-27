@@ -1,11 +1,15 @@
 package io.github.innocentmiau.miautify.library
 
-/** What an earlier scan remembered about a file: its size, date and folder cover then, and its tags. */
+/**
+ * What an earlier scan remembered about a file: its size, date and folder cover then, its
+ * tags, and the [TagReader.VERSION] that read them.
+ */
 data class CachedSong(
     val size: Long,
     val lastModified: Long,
     val tags: SongTags,
-    val folderCoverId: String? = null
+    val folderCoverId: String? = null,
+    val tagsVersion: Int = TagReader.VERSION
 )
 
 /**
@@ -26,7 +30,9 @@ data class CacheMatch(
 
 /**
  * Matches the files found by a scan with the cache, keyed by document id. A cached file is
- * reused only if its size and date are unchanged, so an edited file has its tags read again.
+ * reused only if its size and date are unchanged, so an edited file has its tags read again,
+ * and if its tags were read by the current [TagReader.VERSION]. Until they are read again,
+ * the older tags still show.
  */
 fun matchCache(files: List<SongFile>, cached: Map<String, CachedSong>): CacheMatch {
     val toRead = mutableListOf<Int>()
@@ -35,7 +41,7 @@ fun matchCache(files: List<SongFile>, cached: Map<String, CachedSong>): CacheMat
         val hit = cached[file.documentId]
             ?.takeIf { it.size == file.size && it.lastModified == file.lastModified }
         when {
-            hit == null -> toRead += index
+            hit == null || hit.tagsVersion != TagReader.VERSION -> toRead += index
             hit.folderCoverId != file.folderCoverId -> toUpdate += index
         }
         Song(file, hit?.tags)

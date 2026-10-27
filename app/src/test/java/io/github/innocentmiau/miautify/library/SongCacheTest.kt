@@ -65,6 +65,14 @@ class SongCacheTest {
     }
 
     @Test
+    fun tagsReadByAnOlderVersionAreReadAgainButStillShown() {
+        val match = matchCache(listOf(file("a")), mapOf("a" to CachedSong(100, 1, tags, tagsVersion = 1)))
+
+        assertEquals(listOf(0), match.toRead)
+        assertEquals(tags, match.songs.single().tags)
+    }
+
+    @Test
     fun theOrderOfTheFilesIsKept() {
         val files = listOf(file("c"), file("a"), file("b"))
 

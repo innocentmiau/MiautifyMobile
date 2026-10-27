@@ -15,13 +15,16 @@ import androidx.room.RoomDatabase
  * 2. songs.folderCoverId. Room writes this migration itself, by comparing the saved layouts
  *    of versions 1 and 2: it only adds a column, so nothing is lost.
  * 3. The plays table (play counts and last played times), also an auto-migration.
+ * 4. songs.albumArtist, trackNumber, discNumber and tagsVersion (1 for existing rows, so their
+ *    tags are read again in the background), also an auto-migration.
  */
 @Database(
     entities = [SongEntity::class, PlayEntity::class],
-    version = 3,
+    version = 4,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
-        AutoMigration(from = 2, to = 3)
+        AutoMigration(from = 2, to = 3),
+        AutoMigration(from = 3, to = 4)
     ]
 )
 abstract class MiautifyDatabase : RoomDatabase() {

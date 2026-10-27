@@ -5,8 +5,19 @@ data class SongTags(
     val title: String?,
     val artist: String?,
     val album: String?,
-    val durationMs: Long?
+    val durationMs: Long?,
+    /** The album's own artist (ID3 TPE2): one name for an OST whose tracks have many artists. */
+    val albumArtist: String? = null,
+    val trackNumber: Int? = null,
+    val discNumber: Int? = null
 )
+
+/**
+ * The first number of a track or disc tag: "3/12" (track 3 of 12) or "3" give 3. Null when
+ * the tag is missing or doesn't start with a number.
+ */
+fun parseTagNumber(text: String?): Int? =
+    text?.substringBefore('/')?.trim()?.toIntOrNull()
 
 /** A song in the list: the file, and its tags once they are read (null before, or if unreadable). */
 data class Song(
