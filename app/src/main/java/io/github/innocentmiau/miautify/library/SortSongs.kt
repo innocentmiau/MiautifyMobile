@@ -14,8 +14,8 @@ enum class SortOrder {
 
 // Compares text the way people expect in the phone's language: "é" next to "e", case ignored.
 private val collator = Collator.getInstance().apply { strength = Collator.SECONDARY }
-private val textOrder = Comparator<String> { a, b -> collator.compare(a, b) }
-private val folderOrder: Comparator<Song> = compareBy(songFileOrder) { it.file }
+internal val textOrder = Comparator<String> { a, b -> collator.compare(a, b) }
+internal val folderOrder: Comparator<Song> = compareBy(songFileOrder) { it.file }
 
 /**
  * [songs] in [order], or the other way around when [reversed]. Ties are always broken the
