@@ -19,17 +19,21 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.innocentmiau.miautify.R
 import io.github.innocentmiau.miautify.library.Covers
 import io.github.innocentmiau.miautify.library.SongFile
 
-/** A square cover with rounded corners, or a music note when there is none. Decorative, so not read aloud. */
+/**
+ * A square cover with rounded corners, or a music note when there is none. Decorative, so not
+ * read aloud. 48 dp by default; pass [size] as Dp.Unspecified to size it with [modifier].
+ */
 @Composable
-fun CoverImage(cover: ImageBitmap?, modifier: Modifier = Modifier) {
+fun CoverImage(cover: ImageBitmap?, modifier: Modifier = Modifier, size: Dp = 48.dp) {
     Box(
         modifier = modifier
-            .size(48.dp)
+            .then(if (size != Dp.Unspecified) Modifier.size(size) else Modifier)
             .clip(RoundedCornerShape(6.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center

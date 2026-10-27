@@ -22,8 +22,11 @@ import kotlin.math.roundToInt
  * file again.
  */
 object Covers {
-    /** Thumbnail size in pixels: enough for a 48 dp square on the sharpest screens. */
-    private const val SIZE = 160
+    /**
+     * Thumbnail size in pixels: sharp for an album card in the browse grid (about 110 dp wide)
+     * on the sharpest screens, and more than enough for a 48 dp list cover.
+     */
+    private const val SIZE = 320
 
     // About 1/16 of the app's memory for thumbnails in use, the least recently shown dropped first.
     private val memory = object : LruCache<String, ImageBitmap>((Runtime.getRuntime().maxMemory() / 16).toInt()) {
@@ -106,10 +109,11 @@ object Covers {
     }
 
     /** Changes when the song file changes, so an edited embedded cover is read again. */
-    private fun songKey(file: SongFile): String = sha1("song|${file.documentId}|${file.size}|${file.lastModified}")
+    // SIZE is part of the keys, so changing it makes new thumbnails instead of reusing old ones.
+    private fun songKey(file: SongFile): String = sha1("song|$SIZE|${file.documentId}|${file.size}|${file.lastModified}")
 
     /** One per folder image. A cover.jpg replaced under the same name keeps its old thumbnail until the cache is cleared. */
-    private fun folderKey(coverId: String): String = sha1("folder|$coverId")
+    private fun folderKey(coverId: String): String = sha1("folder|$SIZE|$coverId")
 
     private fun sha1(text: String): String =
         MessageDigest.getInstance("SHA-1").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }

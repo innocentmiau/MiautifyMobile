@@ -50,9 +50,32 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     var playCounts by mutableStateOf<Map<String, Int>>(emptyMap())
         private set
 
+    /**
+     * The search screen's text and chosen chip. Kept here and not in the screen, so they are
+     * still there when you come back from an album or artist opened from the results.
+     */
+    var searchQuery by mutableStateOf("")
+        private set
+
+    var searchTab by mutableStateOf(SearchTab.SONGS)
+        private set
+
     init {
         folder?.let(::startScan)
         loadPlayCounts()
+    }
+
+    fun search(query: String) {
+        searchQuery = query
+    }
+
+    fun showSearchTab(tab: SearchTab) {
+        searchTab = tab
+    }
+
+    /** Leaving search starts the next one fresh, on the same chip. */
+    fun clearSearch() {
+        searchQuery = ""
     }
 
     fun sortBy(order: SortOrder, reversed: Boolean) {

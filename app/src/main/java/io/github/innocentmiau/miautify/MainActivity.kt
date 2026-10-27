@@ -15,11 +15,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import io.github.innocentmiau.miautify.library.GroupKind
 import io.github.innocentmiau.miautify.playback.nextRepeatMode
 import io.github.innocentmiau.miautify.playback.rememberArtwork
 import io.github.innocentmiau.miautify.playback.rememberNowPlaying
 import io.github.innocentmiau.miautify.playback.rememberPlayer
 import io.github.innocentmiau.miautify.playback.rememberPositionMs
+import io.github.innocentmiau.miautify.ui.GroupScreen
 import io.github.innocentmiau.miautify.ui.MusicFolderScreen
 import io.github.innocentmiau.miautify.ui.PlayerBar
 import io.github.innocentmiau.miautify.ui.SearchScreen
@@ -45,7 +47,11 @@ class MainActivity : ComponentActivity() {
 fun MiautifyApp() {
     val player = rememberPlayer()
     val nowPlaying = rememberNowPlaying(player)
+    // Which screen shows. Saveable, so a rotation keeps you where you were. An opened group
+    // sits on top of search, and going back from it returns to the search as you left it.
     var searching by rememberSaveable { mutableStateOf(false) }
+    var openKind by rememberSaveable { mutableStateOf<GroupKind?>(null) }
+    var openId by rememberSaveable { mutableStateOf<String?>(null) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -71,11 +77,28 @@ fun MiautifyApp() {
         val screenModifier = Modifier
             .fillMaxSize()
             .padding(innerPadding)
-        // Two screens for now, so a flag is enough. Saveable: a rotation keeps you in search.
-        if (searching) {
+        val kind = openKind
+        val id = openId
+        if (kind != null && id != null) {
+            GroupScreen(
+                kind = kind,
+                id = id,
+                player = player,
+                playingSongId = nowPlaying?.songId,
+                onBack = {
+                    openKind = null
+                    openId = null
+                },
+                modifier = screenModifier
+            )
+        } else if (searching) {
             SearchScreen(
                 player = player,
                 playingSongId = nowPlaying?.songId,
+                onOpenGroup = { groupKind, groupId ->
+                    openKind = groupKind
+                    openId = groupId
+                },
                 onClose = { searching = false },
                 modifier = screenModifier
             )
