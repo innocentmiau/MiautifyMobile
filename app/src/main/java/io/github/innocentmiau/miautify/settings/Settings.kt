@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.core.content.edit
 import androidx.core.net.toUri
+import io.github.innocentmiau.miautify.library.SortOrder
 
 /** Small values the app remembers between launches. */
 class Settings(context: Context) {
@@ -23,9 +24,20 @@ class Settings(context: Context) {
         get() = prefs.getInt(KEY_REPEAT_MODE, 0)
         set(value) = prefs.edit { putInt(KEY_REPEAT_MODE, value) }
 
+    /** Saved by name, so reordering the enum can't change a saved choice. Unknown names read as folder order. */
+    var sortOrder: SortOrder
+        get() = SortOrder.entries.find { it.name == prefs.getString(KEY_SORT_ORDER, null) } ?: SortOrder.FOLDER
+        set(value) = prefs.edit { putString(KEY_SORT_ORDER, value.name) }
+
+    var sortReversed: Boolean
+        get() = prefs.getBoolean(KEY_SORT_REVERSED, false)
+        set(value) = prefs.edit { putBoolean(KEY_SORT_REVERSED, value) }
+
     private companion object {
         const val KEY_MUSIC_FOLDER = "music_folder"
         const val KEY_SHUFFLE = "shuffle"
         const val KEY_REPEAT_MODE = "repeat_mode"
+        const val KEY_SORT_ORDER = "sort_order"
+        const val KEY_SORT_REVERSED = "sort_reversed"
     }
 }

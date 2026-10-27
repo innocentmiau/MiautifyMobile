@@ -7,8 +7,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.innocentmiau.miautify.data.MiautifyDatabase
 import io.github.innocentmiau.miautify.library.MusicFolder
 import io.github.innocentmiau.miautify.library.ScanState
+import io.github.innocentmiau.miautify.library.SortOrder
 import io.github.innocentmiau.miautify.library.scanLibrary
 import io.github.innocentmiau.miautify.settings.Settings
 import kotlinx.coroutines.Job
@@ -35,8 +37,37 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     var scan by mutableStateOf<ScanState?>(null)
         private set
 
+    var sortOrder by mutableStateOf(settings.sortOrder)
+        private set
+
+    var sortReversed by mutableStateOf(settings.sortReversed)
+        private set
+
+    /**
+     * Play counts by document id, for sorting by most played. Read when the app opens and when
+     * that sort is picked, not live, so the list doesn't reorder itself while a song plays.
+     */
+    var playCounts by mutableStateOf<Map<String, Int>>(emptyMap())
+        private set
+
     init {
         folder?.let(::startScan)
+        loadPlayCounts()
+    }
+
+    fun sortBy(order: SortOrder, reversed: Boolean) {
+        sortOrder = order
+        sortReversed = reversed
+        settings.sortOrder = order
+        settings.sortReversed = reversed
+        if (order == SortOrder.MOST_PLAYED) loadPlayCounts()
+    }
+
+    private fun loadPlayCounts() {
+        viewModelScope.launch {
+            val plays = MiautifyDatabase.get(getApplication()).plays().all()
+            playCounts = plays.associate { it.documentId to it.playCount }
+        }
     }
 
     /** Uses [picked] from now on and remembers it. Scans it unless it is the current folder. */

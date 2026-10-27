@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -31,10 +32,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.Player
 import io.github.innocentmiau.miautify.R
 import io.github.innocentmiau.miautify.library.ScanState
+import io.github.innocentmiau.miautify.library.SortOrder
 import io.github.innocentmiau.miautify.library.Song
 import io.github.innocentmiau.miautify.library.SongFile
 import io.github.innocentmiau.miautify.library.SongTags
 import io.github.innocentmiau.miautify.library.formatDuration
+import io.github.innocentmiau.miautify.library.sortSongs
 import io.github.innocentmiau.miautify.playback.playSongs
 import io.github.innocentmiau.miautify.ui.theme.MiautifyTheme
 import io.github.innocentmiau.miautify.ui.theme.TextBright
@@ -68,7 +71,9 @@ fun MusicFolderScreen(
         folder = library.folder,
         folderName = library.folderName,
         scan = library.scan,
+        sorting = Sorting(library.sortOrder, library.sortReversed, library.playCounts),
         playingSongId = playingSongId,
+        onSort = library::sortBy,
         // Opens the picker inside the current folder, so changing it is quicker.
         onChooseFolder = { picker.launch(library.folder) },
         onPlaySong = { songs, index ->
@@ -85,7 +90,9 @@ private fun MusicFolderContent(
     folder: Uri?,
     folderName: String?,
     scan: ScanState?,
+    sorting: Sorting,
     playingSongId: String?,
+    onSort: (SortOrder, reversed: Boolean) -> Unit,
     onChooseFolder: () -> Unit,
     onPlaySong: (songs: List<Song>, index: Int) -> Unit,
     modifier: Modifier = Modifier
@@ -98,7 +105,7 @@ private fun MusicFolderContent(
             if (scan.songs.isEmpty()) {
                 Message(stringResource(R.string.library_no_songs), onChooseFolder, modifier)
             } else {
-                SongList(folder, folderName, scan, playingSongId, onChooseFolder, onPlaySong, modifier)
+                SongList(folder, folderName, scan, sorting, playingSongId, onSort, onChooseFolder, onPlaySong, modifier)
             }
     }
 }
@@ -138,12 +145,18 @@ private fun SongList(
     folder: Uri?,
     folderName: String?,
     scan: ScanState.Done,
+    sorting: Sorting,
     playingSongId: String?,
+    onSort: (SortOrder, reversed: Boolean) -> Unit,
     onChooseFolder: () -> Unit,
     onPlaySong: (songs: List<Song>, index: Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val songs = scan.songs
+    // Sorted again only when the songs or the sorting change, not on every redraw. Songs play
+    // in this order: the list shown is the list played.
+    val songs = remember(scan.songs, sorting) {
+        sortSongs(scan.songs, sorting.order, sorting.reversed, sorting.playCounts)
+    }
     Column(modifier = modifier) {
         Row(
             modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp),
@@ -166,6 +179,7 @@ private fun SongList(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            SortMenu(sorting.order, sorting.reversed, onSort)
             TextButton(onClick = onChooseFolder) {
                 Text(stringResource(R.string.library_change_folder))
             }
@@ -177,6 +191,12 @@ private fun SongList(
                 SongRow(
                     folder = folder,
                     song = song,
+                    // Only shown when sorted by it, where it explains the order.
+                    playCount = if (sorting.order == SortOrder.MOST_PLAYED) {
+                        sorting.playCounts[song.file.documentId] ?: 0
+                    } else {
+                        null
+                    },
                     isPlaying = song.file.documentId == playingSongId,
                     onClick = { onPlaySong(songs, index) }
                 )
@@ -186,11 +206,14 @@ private fun SongList(
 }
 
 @Composable
-private fun SongRow(folder: Uri?, song: Song, isPlaying: Boolean, onClick: () -> Unit) {
+private fun SongRow(folder: Uri?, song: Song, playCount: Int?, isPlaying: Boolean, onClick: () -> Unit) {
     // "Artist · Album", or the folder path until the tags are read or when there are none.
+    // Starts with "12 plays" when [playCount] is given.
+    val plays = playCount?.let { pluralStringResource(R.plurals.library_play_count, it, it) }
     val details = listOfNotNull(song.tags?.artist, song.tags?.album)
         .joinToString(" · ")
         .ifEmpty { song.file.folder }
+        .let { tags -> listOfNotNull(plays, tags.takeIf { it.isNotEmpty() }).joinToString(" · ") }
     val duration = song.tags?.durationMs
 
     ListItem(
@@ -221,7 +244,7 @@ private fun SongRow(folder: Uri?, song: Song, isPlaying: Boolean, onClick: () ->
 @Composable
 private fun NoFolderPreview() {
     MiautifyTheme {
-        MusicFolderContent(folder = null, folderName = null, scan = null, playingSongId = null, onChooseFolder = {}, onPlaySong = { _, _ -> }, modifier = Modifier.fillMaxSize())
+        MusicFolderContent(folder = null, folderName = null, scan = null, sorting = Sorting(), playingSongId = null, onSort = { _, _ -> }, onChooseFolder = {}, onPlaySong = { _, _ -> }, modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -229,7 +252,7 @@ private fun NoFolderPreview() {
 @Composable
 private fun ScanningPreview() {
     MiautifyTheme {
-        MusicFolderContent(folder = null, folderName = "Music", scan = ScanState.Scanning, playingSongId = null, onChooseFolder = {}, onPlaySong = { _, _ -> }, modifier = Modifier.fillMaxSize())
+        MusicFolderContent(folder = null, folderName = "Music", scan = ScanState.Scanning, sorting = Sorting(), playingSongId = null, onSort = { _, _ -> }, onChooseFolder = {}, onPlaySong = { _, _ -> }, modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -246,6 +269,8 @@ private fun SongListPreview() {
             folder = null,
             folderName = "Music",
             scan = ScanState.Done(songs, tagsToRead = 3, tagsRead = 2),
+            sorting = Sorting(),
+            onSort = { _, _ -> },
             playingSongId = "2",
             onChooseFolder = {},
             onPlaySong = { _, _ -> },

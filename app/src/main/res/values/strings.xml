@@ -16,6 +16,17 @@
     <string name="player_repeat_off">Repeat: off</string>
     <string name="player_repeat_all">Repeat: all</string>
     <string name="player_repeat_one">Repeat: one song</string>
+    <string name="sort">Sort</string>
+    <string name="sort_folder">Folder order</string>
+    <string name="sort_title">Title</string>
+    <string name="sort_artist">Artist</string>
+    <string name="sort_album">Album</string>
+    <string name="sort_most_played">Most played</string>
+    <string name="sort_reverse">Reverse order</string>
+    <plurals name="library_play_count">
+        <item quantity="one">%d play</item>
+        <item quantity="other">%d plays</item>
+    </plurals>
     <plurals name="library_song_count">
         <item quantity="one">%d song</item>
         <item quantity="other">%d songs</item>
