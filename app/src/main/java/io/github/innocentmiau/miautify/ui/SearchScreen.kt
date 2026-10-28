@@ -49,6 +49,7 @@ import androidx.media3.common.Player
 import io.github.innocentmiau.miautify.R
 import io.github.innocentmiau.miautify.library.GroupKind
 import io.github.innocentmiau.miautify.library.ScanState
+import io.github.innocentmiau.miautify.library.isBroken
 import io.github.innocentmiau.miautify.library.Song
 import io.github.innocentmiau.miautify.library.SongGroup
 import io.github.innocentmiau.miautify.library.SongSearch
@@ -137,6 +138,7 @@ private fun SongResults(
                 song = song,
                 playCount = null,
                 isPlaying = song.file.documentId == playingSongId,
+                    broken = song.isBroken(library.brokenFiles),
                 onClick = {
                     val folder = library.folder
                     if (player != null && folder != null) player.playSongs(folder, results, index)

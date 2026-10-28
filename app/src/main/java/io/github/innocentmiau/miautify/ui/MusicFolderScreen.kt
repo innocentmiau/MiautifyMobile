@@ -20,6 +20,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -34,7 +35,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.Player
 import io.github.innocentmiau.miautify.R
+import io.github.innocentmiau.miautify.library.BrokenFile
 import io.github.innocentmiau.miautify.library.ScanState
+import io.github.innocentmiau.miautify.library.isBroken
 import io.github.innocentmiau.miautify.library.SortOrder
 import io.github.innocentmiau.miautify.library.Song
 import io.github.innocentmiau.miautify.library.SongFile
@@ -76,18 +79,32 @@ fun MusicFolderScreen(
         folderName = library.folderName,
         scan = library.scan,
         sorting = Sorting(library.sortOrder, library.sortReversed, library.playCounts),
+        brokenFiles = library.brokenFiles,
         playingSongId = playingSongId,
-        onSort = library::sortBy,
-        onSearch = onSearch,
-        // Opens the picker inside the current folder, so changing it is quicker.
-        onChooseFolder = { picker.launch(library.folder) },
-        onPlaySong = { songs, index ->
-            val folder = library.folder
-            if (player != null && folder != null) player.playSongs(folder, songs, index)
-        },
+        refreshing = library.refreshing,
+        actions = LibraryActions(
+            sort = library::sortBy,
+            search = onSearch,
+            // Opens the picker inside the current folder, so changing it is quicker.
+            chooseFolder = { picker.launch(library.folder) },
+            refresh = library::refresh,
+            playSong = { songs, index ->
+                val folder = library.folder
+                if (player != null && folder != null) player.playSongs(folder, songs, index)
+            }
+        ),
         modifier = modifier
     )
 }
+
+/** What the library screen's buttons and rows do, in one value instead of five parameters. */
+private data class LibraryActions(
+    val sort: (SortOrder, reversed: Boolean) -> Unit = { _, _ -> },
+    val search: () -> Unit = {},
+    val chooseFolder: () -> Unit = {},
+    val refresh: () -> Unit = {},
+    val playSong: (songs: List<Song>, index: Int) -> Unit = { _, _ -> }
+)
 
 /** [scan] is null when no folder was chosen yet. */
 @Composable
@@ -96,28 +113,33 @@ private fun MusicFolderContent(
     folderName: String?,
     scan: ScanState?,
     sorting: Sorting,
+    brokenFiles: Map<String, BrokenFile>,
     playingSongId: String?,
-    onSort: (SortOrder, reversed: Boolean) -> Unit,
-    onSearch: () -> Unit,
-    onChooseFolder: () -> Unit,
-    onPlaySong: (songs: List<Song>, index: Int) -> Unit,
+    refreshing: Boolean,
+    actions: LibraryActions,
     modifier: Modifier = Modifier
 ) {
     when (scan) {
-        null -> Message(stringResource(R.string.library_empty), onChooseFolder, modifier)
-        ScanState.Failed -> Message(stringResource(R.string.library_scan_failed), onChooseFolder, modifier)
+        null -> Message(stringResource(R.string.library_empty), actions.chooseFolder, modifier = modifier)
+        ScanState.Failed -> Message(stringResource(R.string.library_scan_failed), actions.chooseFolder, modifier = modifier)
         ScanState.Scanning -> Scanning(modifier)
         is ScanState.Done ->
             if (scan.songs.isEmpty()) {
-                Message(stringResource(R.string.library_no_songs), onChooseFolder, modifier)
+                // No list to pull down here, so the message gets its own Refresh button.
+                Message(stringResource(R.string.library_no_songs), actions.chooseFolder, modifier, onRefresh = actions.refresh)
             } else {
-                SongList(folder, folderName, scan, sorting, playingSongId, onSort, onSearch, onChooseFolder, onPlaySong, modifier)
+                SongList(folder, folderName, scan, sorting, brokenFiles, playingSongId, refreshing, actions, modifier)
             }
     }
 }
 
 @Composable
-private fun Message(text: String, onChooseFolder: () -> Unit, modifier: Modifier = Modifier) {
+private fun Message(
+    text: String,
+    onChooseFolder: () -> Unit,
+    modifier: Modifier = Modifier,
+    onRefresh: (() -> Unit)? = null
+) {
     Column(
         modifier = modifier.padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
@@ -130,6 +152,11 @@ private fun Message(text: String, onChooseFolder: () -> Unit, modifier: Modifier
         )
         Button(onClick = onChooseFolder) {
             Text(stringResource(R.string.library_choose_folder))
+        }
+        if (onRefresh != null) {
+            TextButton(onClick = onRefresh) {
+                Text(stringResource(R.string.library_refresh))
+            }
         }
     }
 }
@@ -152,11 +179,10 @@ private fun SongList(
     folderName: String?,
     scan: ScanState.Done,
     sorting: Sorting,
+    brokenFiles: Map<String, BrokenFile>,
     playingSongId: String?,
-    onSort: (SortOrder, reversed: Boolean) -> Unit,
-    onSearch: () -> Unit,
-    onChooseFolder: () -> Unit,
-    onPlaySong: (songs: List<Song>, index: Int) -> Unit,
+    refreshing: Boolean,
+    actions: LibraryActions,
     modifier: Modifier = Modifier
 ) {
     // Sorted again only when the songs or the sorting change, not on every redraw. Songs play
@@ -186,30 +212,34 @@ private fun SongList(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            IconButton(onClick = onSearch) {
+            IconButton(onClick = actions.search) {
                 Icon(painterResource(R.drawable.ic_search), stringResource(R.string.search))
             }
-            SortMenu(sorting.order, sorting.reversed, onSort)
-            TextButton(onClick = onChooseFolder) {
+            SortMenu(sorting.order, sorting.reversed, actions.sort)
+            TextButton(onClick = actions.chooseFolder) {
                 Text(stringResource(R.string.library_change_folder))
             }
         }
 
-        // Only the rows on screen are built, so a library of thousands of songs scrolls smoothly.
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            itemsIndexed(songs, key = { _, song -> song.file.documentId }) { index, song ->
-                SongRow(
-                    folder = folder,
-                    song = song,
-                    // Only shown when sorted by it, where it explains the order.
-                    playCount = if (sorting.order == SortOrder.MOST_PLAYED) {
-                        sorting.playCounts[song.file.documentId] ?: 0
-                    } else {
-                        null
-                    },
-                    isPlaying = song.file.documentId == playingSongId,
-                    onClick = { onPlaySong(songs, index) }
-                )
+        // Pull the list down from the top to look for new, changed or removed files.
+        PullToRefreshBox(isRefreshing = refreshing, onRefresh = actions.refresh, modifier = Modifier.fillMaxSize()) {
+            // Only the rows on screen are built, so a library of thousands of songs scrolls smoothly.
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                itemsIndexed(songs, key = { _, song -> song.file.documentId }) { index, song ->
+                    SongRow(
+                        folder = folder,
+                        song = song,
+                        // Only shown when sorted by it, where it explains the order.
+                        playCount = if (sorting.order == SortOrder.MOST_PLAYED) {
+                            sorting.playCounts[song.file.documentId] ?: 0
+                        } else {
+                            null
+                        },
+                        isPlaying = song.file.documentId == playingSongId,
+                        broken = song.isBroken(brokenFiles),
+                        onClick = { actions.playSong(songs, index) }
+                    )
+                }
             }
         }
     }
@@ -219,7 +249,7 @@ private fun SongList(
 @Composable
 private fun NoFolderPreview() {
     MiautifyTheme {
-        MusicFolderContent(folder = null, folderName = null, scan = null, sorting = Sorting(), playingSongId = null, onSort = { _, _ -> }, onSearch = {}, onChooseFolder = {}, onPlaySong = { _, _ -> }, modifier = Modifier.fillMaxSize())
+        MusicFolderContent(folder = null, folderName = null, scan = null, sorting = Sorting(), brokenFiles = emptyMap(), playingSongId = null, refreshing = false, actions = LibraryActions(), modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -227,7 +257,7 @@ private fun NoFolderPreview() {
 @Composable
 private fun ScanningPreview() {
     MiautifyTheme {
-        MusicFolderContent(folder = null, folderName = "Music", scan = ScanState.Scanning, sorting = Sorting(), playingSongId = null, onSort = { _, _ -> }, onSearch = {}, onChooseFolder = {}, onPlaySong = { _, _ -> }, modifier = Modifier.fillMaxSize())
+        MusicFolderContent(folder = null, folderName = "Music", scan = ScanState.Scanning, sorting = Sorting(), brokenFiles = emptyMap(), playingSongId = null, refreshing = false, actions = LibraryActions(), modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -245,11 +275,10 @@ private fun SongListPreview() {
             folderName = "Music",
             scan = ScanState.Done(songs, tagsToRead = 3, tagsRead = 2),
             sorting = Sorting(),
-            onSort = { _, _ -> },
-            onSearch = {},
+            brokenFiles = emptyMap(),
             playingSongId = "2",
-            onChooseFolder = {},
-            onPlaySong = { _, _ -> },
+            refreshing = false,
+            actions = LibraryActions(),
             modifier = Modifier.fillMaxSize()
         )
     }

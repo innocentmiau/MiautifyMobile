@@ -9,6 +9,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.innocentmiau.miautify.data.MiautifyDatabase
 import io.github.innocentmiau.miautify.library.MusicFolder
+import io.github.innocentmiau.miautify.library.BrokenFile
 import io.github.innocentmiau.miautify.library.ScanState
 import io.github.innocentmiau.miautify.library.SortOrder
 import io.github.innocentmiau.miautify.library.scanLibrary
@@ -50,6 +51,14 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     var playCounts by mutableStateOf<Map<String, Int>>(emptyMap())
         private set
 
+    /** True from a pull to refresh until the folder has been checked for changes. */
+    var refreshing by mutableStateOf(false)
+        private set
+
+    /** Files that failed to play, by document id. Updated live as the player finds them. */
+    var brokenFiles by mutableStateOf<Map<String, BrokenFile>>(emptyMap())
+        private set
+
     /**
      * The search screen's text and chosen chip. Kept here and not in the screen, so they are
      * still there when you come back from an album or artist opened from the results.
@@ -63,6 +72,11 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     init {
         folder?.let(::startScan)
         loadPlayCounts()
+        viewModelScope.launch {
+            MiautifyDatabase.get(getApplication()).brokenFiles().observeAll().collect { rows ->
+                brokenFiles = rows.associate { it.documentId to it.toBrokenFile() }
+            }
+        }
     }
 
     fun search(query: String) {
@@ -102,13 +116,28 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         if (picked != previous) startScan(picked)
     }
 
+    /**
+     * Looks at the folder again, like at launch: the list stays, only new or changed files
+     * are read, and removed ones disappear.
+     */
+    fun refresh() {
+        val current = folder ?: return
+        refreshing = true
+        startScan(current)
+    }
+
     private fun startScan(folder: Uri) {
         // Stops the scan of the previous folder, if it is still running.
         scanJob?.cancel()
         folderName = MusicFolder.displayName(getApplication(), folder)
         // viewModelScope is cancelled when the ViewModel is cleared, which ends the scan too.
         scanJob = viewModelScope.launch {
-            scanLibrary(getApplication(), folder).collect { scan = it }
+            scanLibrary(getApplication(), folder).collect {
+                scan = it
+                // The spinner stops once the folder is checked. Reading tags afterwards shows
+                // its own progress in the header.
+                if (!(it is ScanState.Done && it.checking)) refreshing = false
+            }
         }
     }
 }

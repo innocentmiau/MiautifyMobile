@@ -33,8 +33,8 @@ import io.github.innocentmiau.miautify.playback.NowPlaying
 import io.github.innocentmiau.miautify.ui.theme.MiautifyTheme
 
 /**
- * The bar at the bottom: a seek bar with times, the playing song, and shuffle, previous,
- * play or pause, next and repeat.
+ * The bar at the bottom: shuffle, the seek bar with times and repeat on top, then the playing
+ * song with previous, play or pause, and next.
  */
 @Composable
 fun PlayerBar(
@@ -55,11 +55,24 @@ fun PlayerBar(
     ) {
         // Keeps the bar above the phone's navigation bar.
         Column(modifier = Modifier.navigationBarsPadding()) {
-            SeekBar(
-                positionMs = positionMs,
-                durationMs = nowPlaying.durationMs,
-                onSeek = onSeek
-            )
+            // Shuffle and repeat sit at the ends of the seek bar's row, so the row below
+            // leaves the song's title room to be read.
+            Row(
+                modifier = Modifier.padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // A toggle button: tinted in the accent color when on, and read out as on or off.
+                IconToggleButton(checked = nowPlaying.shuffle, onCheckedChange = onShuffle) {
+                    Icon(painterResource(R.drawable.ic_shuffle), stringResource(R.string.player_shuffle))
+                }
+                SeekBar(
+                    positionMs = positionMs,
+                    durationMs = nowPlaying.durationMs,
+                    onSeek = onSeek,
+                    modifier = Modifier.weight(1f)
+                )
+                RepeatButton(repeatMode = nowPlaying.repeatMode, onClick = onRepeat)
+            }
             Row(
                 modifier = Modifier.padding(start = 16.dp, end = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -86,10 +99,6 @@ fun PlayerBar(
                         )
                     }
                 }
-                // A toggle button: tinted in the accent color when on, and read out as on or off.
-                IconToggleButton(checked = nowPlaying.shuffle, onCheckedChange = onShuffle) {
-                    Icon(painterResource(R.drawable.ic_shuffle), stringResource(R.string.player_shuffle))
-                }
                 IconButton(onClick = onPrevious) {
                     Icon(painterResource(R.drawable.ic_skip_previous), stringResource(R.string.player_previous))
                 }
@@ -103,7 +112,6 @@ fun PlayerBar(
                 IconButton(onClick = onNext) {
                     Icon(painterResource(R.drawable.ic_skip_next), stringResource(R.string.player_next))
                 }
-                RepeatButton(repeatMode = nowPlaying.repeatMode, onClick = onRepeat)
             }
         }
     }
@@ -128,7 +136,7 @@ private fun RepeatButton(repeatMode: Int, onClick: () -> Unit) {
 
 /** Elapsed time, the slider, and the song's length. Disabled until the length is known. */
 @Composable
-private fun SeekBar(positionMs: Long, durationMs: Long?, onSeek: (Long) -> Unit) {
+private fun SeekBar(positionMs: Long, durationMs: Long?, onSeek: (Long) -> Unit, modifier: Modifier = Modifier) {
     // While a finger is on the slider it shows the finger's place, not the player's, and
     // only seeks once on release, so dragging doesn't seek dozens of times.
     var draggingMs by remember { mutableStateOf<Long?>(null) }
@@ -136,7 +144,7 @@ private fun SeekBar(positionMs: Long, durationMs: Long?, onSeek: (Long) -> Unit)
     val shownMs = (draggingMs ?: positionMs).coerceIn(0L, duration)
 
     Row(
-        modifier = Modifier.padding(horizontal = 16.dp),
+        modifier = modifier,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
@@ -154,7 +162,7 @@ private fun SeekBar(positionMs: Long, durationMs: Long?, onSeek: (Long) -> Unit)
             enabled = duration > 0,
             modifier = Modifier
                 .weight(1f)
-                .padding(horizontal = 12.dp)
+                .padding(horizontal = 8.dp)
         )
         Text(
             text = durationMs?.let(::formatDuration).orEmpty(),

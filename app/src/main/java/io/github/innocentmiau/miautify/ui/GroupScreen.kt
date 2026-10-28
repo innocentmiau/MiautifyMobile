@@ -25,6 +25,7 @@ import androidx.media3.common.Player
 import io.github.innocentmiau.miautify.R
 import io.github.innocentmiau.miautify.library.GroupKind
 import io.github.innocentmiau.miautify.library.ScanState
+import io.github.innocentmiau.miautify.library.isBroken
 import io.github.innocentmiau.miautify.library.groupSongs
 import io.github.innocentmiau.miautify.playback.playSongs
 
@@ -99,6 +100,7 @@ fun GroupScreen(
                     song = song,
                     playCount = null,
                     isPlaying = song.file.documentId == playingSongId,
+                    broken = song.isBroken(library.brokenFiles),
                     onClick = {
                         val folder = library.folder
                         if (player != null && folder != null) player.playSongs(folder, group.songs, index)
