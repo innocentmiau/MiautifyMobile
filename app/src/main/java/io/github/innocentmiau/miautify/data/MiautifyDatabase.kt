@@ -17,20 +17,24 @@ import androidx.room.RoomDatabase
  * 3. The plays table (play counts and last played times), also an auto-migration.
  * 4. songs.albumArtist, trackNumber, discNumber and tagsVersion (1 for existing rows, so their
  *    tags are read again in the background), also an auto-migration.
+ * 5. The broken_files table (files that failed to play), also an auto-migration.
  */
 @Database(
-    entities = [SongEntity::class, PlayEntity::class],
-    version = 4,
+    entities = [SongEntity::class, PlayEntity::class, BrokenFileEntity::class],
+    version = 5,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
-        AutoMigration(from = 3, to = 4)
+        AutoMigration(from = 3, to = 4),
+        AutoMigration(from = 4, to = 5)
     ]
 )
 abstract class MiautifyDatabase : RoomDatabase() {
     abstract fun songs(): SongDao
 
     abstract fun plays(): PlayDao
+
+    abstract fun brokenFiles(): BrokenFileDao
 
     companion object {
         @Volatile

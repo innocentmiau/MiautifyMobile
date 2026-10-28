@@ -89,6 +89,7 @@ class PlaybackService : MediaSessionService() {
             }
         })
         PlayTracker(player, plays, recentPlays, mainScope)
+        SkipBrokenFiles(this, player, MiautifyDatabase.get(this).brokenFiles(), mainScope)
         session = MediaSession.Builder(this, player).build()
     }
 

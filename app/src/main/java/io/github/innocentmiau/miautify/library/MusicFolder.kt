@@ -40,6 +40,17 @@ object MusicFolder {
         }
     }.getOrNull()
 
+    /** A file's size and last change, to notice later whether it changed. */
+    data class FileStamp(val size: Long, val lastModified: Long)
+
+    /** The size and date of [file] right now, or null when it can't be read (deleted, for example). Slow: off the main thread. */
+    fun fileStamp(context: Context, file: Uri): FileStamp? = runCatching {
+        val columns = arrayOf(Document.COLUMN_SIZE, Document.COLUMN_LAST_MODIFIED)
+        context.contentResolver.query(file, columns, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) FileStamp(cursor.getLong(0), cursor.getLong(1)) else null
+        }
+    }.getOrNull()
+
     /** The picked folder a file URI from [fileUri] belongs to, to check that access to it is still held. */
     fun folderOf(file: Uri): Uri =
         DocumentsContract.buildTreeDocumentUri(file.authority, DocumentsContract.getTreeDocumentId(file))
