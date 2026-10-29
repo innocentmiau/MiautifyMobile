@@ -87,6 +87,8 @@ fun folders(songs: List<Song>): List<SongGroup> =
 enum class GroupOrder {
     /** The most listened to first: the play counts of their songs added up. */
     MOST_PLAYED,
+    /** The one with the song that started playing last first. Never played ones at the end. */
+    RECENTLY_PLAYED,
     /** By name, or by path for folders. */
     NAME,
     /** The newest file first: the group whose most recently added or changed song is newest. */
@@ -98,9 +100,18 @@ enum class GroupOrder {
  * order for ties, so groups with the same play count, or never played, stay by name.
  *
  * @param playCounts Play counts by document id, for [GroupOrder.MOST_PLAYED]. Missing means 0.
+ * @param lastPlayed When each song last started playing, by document id, for
+ *   [GroupOrder.RECENTLY_PLAYED]. Missing means never.
  */
-fun sortGroups(groups: List<SongGroup>, order: GroupOrder, playCounts: Map<String, Int>): List<SongGroup> = when (order) {
+fun sortGroups(
+    groups: List<SongGroup>,
+    order: GroupOrder,
+    playCounts: Map<String, Int>,
+    lastPlayed: Map<String, Long>
+): List<SongGroup> = when (order) {
     GroupOrder.MOST_PLAYED -> groups.sortedByDescending { group -> group.songs.sumOf { playCounts[it.file.documentId] ?: 0 } }
+    // 0 for never played: before 1970, so after every real time.
+    GroupOrder.RECENTLY_PLAYED -> groups.sortedByDescending { group -> group.songs.maxOf { lastPlayed[it.file.documentId] ?: 0L } }
     GroupOrder.NAME -> groups
     GroupOrder.NEWEST -> groups.sortedByDescending { group -> group.songs.maxOf { it.file.lastModified } }
 }

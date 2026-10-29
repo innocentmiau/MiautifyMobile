@@ -57,6 +57,10 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     var playCounts by mutableStateOf<Map<String, Int>>(emptyMap())
         private set
 
+    /** When each song last started playing, by document id, read with [playCounts]. */
+    var lastPlayed by mutableStateOf<Map<String, Long>>(emptyMap())
+        private set
+
     /** True from a pull to refresh until the folder has been checked for changes. */
     var refreshing by mutableStateOf(false)
         private set
@@ -109,13 +113,14 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     fun sortGroupsBy(order: GroupOrder) {
         groupOrder = order
         settings.groupOrder = order
-        if (order == GroupOrder.MOST_PLAYED) loadPlayCounts()
+        if (order == GroupOrder.MOST_PLAYED || order == GroupOrder.RECENTLY_PLAYED) loadPlayCounts()
     }
 
     fun loadPlayCounts() {
         viewModelScope.launch {
             val plays = MiautifyDatabase.get(getApplication()).plays().all()
             playCounts = plays.associate { it.documentId to it.playCount }
+            lastPlayed = plays.mapNotNull { row -> row.lastPlayedAt?.let { row.documentId to it } }.toMap()
         }
     }
 

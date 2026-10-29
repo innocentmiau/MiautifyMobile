@@ -91,7 +91,7 @@ fun SearchScreen(
     val query = library.searchQuery
     val allSongs = (library.scan as? ScanState.Done)?.songs.orEmpty()
 
-    // Fresh play counts each time browsing opens, so "most played" includes what was just heard.
+    // Fresh play counts and times each time browsing opens, so they include what was just heard.
     LaunchedEffect(Unit) { library.loadPlayCounts() }
 
     Column(modifier = modifier) {
@@ -111,8 +111,8 @@ fun SearchScreen(
             SongResults(allSongs, query, library, player, playingSongId)
         } else {
             // Grouped and sorted once per scan update or sort change, not on every keystroke.
-            val groups = remember(allSongs, kind, library.groupOrder, library.playCounts) {
-                sortGroups(groupSongs(allSongs, kind), library.groupOrder, library.playCounts)
+            val groups = remember(allSongs, kind, library.groupOrder, library.playCounts, library.lastPlayed) {
+                sortGroups(groupSongs(allSongs, kind), library.groupOrder, library.playCounts, library.lastPlayed)
             }
             val results = remember(groups, query) { searchGroups(groups, query) }
             when {

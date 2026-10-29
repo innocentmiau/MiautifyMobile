@@ -96,8 +96,24 @@ class GroupsTest {
         // A: 2 + 2 = 4 beats B's 3. C and D were never played and stay by name.
         val counts = mapOf("a1" to 2, "a2" to 2, "b1" to 3)
 
-        assertEquals(listOf("A", "B", "C", "D"), sortGroups(groups, GroupOrder.MOST_PLAYED, counts).map { it.name })
-        assertEquals(listOf("B", "A", "C", "D"), sortGroups(groups, GroupOrder.MOST_PLAYED, counts + ("b1" to 5)).map { it.name })
+        assertEquals(listOf("A", "B", "C", "D"), sortGroups(groups, GroupOrder.MOST_PLAYED, counts, emptyMap()).map { it.name })
+        assertEquals(listOf("B", "A", "C", "D"), sortGroups(groups, GroupOrder.MOST_PLAYED, counts + ("b1" to 5), emptyMap()).map { it.name })
+    }
+
+    @Test
+    fun recentlyPlayedGoesByTheLastSongStartedAndNeverPlayedStayByNameAtTheEnd() {
+        val groups = albums(
+            listOf(
+                song("a1", album = "A"),
+                song("b1", album = "B"), song("b2", album = "B"),
+                song("c1", album = "C"),
+                song("d1", album = "D")
+            )
+        )
+        // B's second song is the latest one, even though its first was played long ago.
+        val lastPlayed = mapOf("a1" to 200L, "b1" to 10L, "b2" to 300L)
+
+        assertEquals(listOf("B", "A", "C", "D"), sortGroups(groups, GroupOrder.RECENTLY_PLAYED, emptyMap(), lastPlayed).map { it.name })
     }
 
     @Test
@@ -112,8 +128,8 @@ class GroupsTest {
         )
 
         // One song added to Mixed last makes it the newest album.
-        assertEquals(listOf("Mixed", "New", "Old"), sortGroups(groups, GroupOrder.NEWEST, emptyMap()).map { it.name })
-        assertEquals(listOf("Mixed", "New", "Old"), sortGroups(groups, GroupOrder.NAME, emptyMap()).map { it.name })
+        assertEquals(listOf("Mixed", "New", "Old"), sortGroups(groups, GroupOrder.NEWEST, emptyMap(), emptyMap()).map { it.name })
+        assertEquals(listOf("Mixed", "New", "Old"), sortGroups(groups, GroupOrder.NAME, emptyMap(), emptyMap()).map { it.name })
     }
 
     @Test

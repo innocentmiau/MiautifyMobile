@@ -73,6 +73,7 @@ fun SortMenu(order: SortOrder, reversed: Boolean, onSort: (SortOrder, reversed: 
 private val GroupOrder.label: Int
     get() = when (this) {
         GroupOrder.MOST_PLAYED -> R.string.sort_most_played
+        GroupOrder.RECENTLY_PLAYED -> R.string.sort_recently_played
         GroupOrder.NAME -> R.string.sort_a_to_z
         GroupOrder.NEWEST -> R.string.sort_newest
     }

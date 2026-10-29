@@ -40,6 +40,7 @@
     <string name="sort_artist">Artist</string>
     <string name="sort_album">Album</string>
     <string name="sort_most_played">Most played</string>
+    <string name="sort_recently_played">Recently played</string>
     <string name="sort_a_to_z">A to Z</string>
     <string name="sort_newest">Recently added</string>
     <string name="sort_reverse">Reverse order</string>
