@@ -43,9 +43,12 @@ class SmartShuffle(
     private val player: ExoPlayer,
     private val recentPlays: RecentPlays
 ) : Player.Listener {
-    // Setting the shuffle order tells the listeners that the playlist changed, which would
-    // deal again, forever. Listeners are told during the call, so a flag can stop that.
-    private var dealing = false
+    // The list the current deck was dealt for, as the ids the player gave its songs. Setting
+    // the shuffle order tells the listeners that the playlist changed, so a deal must not lead
+    // to another one. These ids stay the same when only the order changes, while every new
+    // list (setMediaItems) gets new ones, even for the same songs. (A flag set during the call
+    // didn't work: called from a listener, the player tells the others only after it returns.)
+    private var dealtFor: List<Any> = emptyList()
 
     init {
         player.addListener(this)
@@ -56,7 +59,10 @@ class SmartShuffle(
     }
 
     override fun onTimelineChanged(timeline: Timeline, reason: Int) {
-        if (!dealing && reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED && player.shuffleModeEnabled) {
+        if (reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED &&
+            player.shuffleModeEnabled &&
+            timeline.windowUids() != dealtFor
+        ) {
             deal()
         }
     }
@@ -68,12 +74,14 @@ class SmartShuffle(
         val deck = shuffleDeck(count, player.currentMediaItemIndex, { index ->
             recentPlays.lastPlayedAt(player.getMediaItemAt(index).mediaId)
         })
-        dealing = true
-        try {
-            // The seed is only used to place songs added to the list later.
-            player.setShuffleOrder(DefaultShuffleOrder(deck, Random.nextLong()))
-        } finally {
-            dealing = false
-        }
+        dealtFor = player.currentTimeline.windowUids()
+        // The seed is only used to place songs added to the list later.
+        player.setShuffleOrder(DefaultShuffleOrder(deck, Random.nextLong()))
     }
+}
+
+/** The id of each song in the player's list, in list order. */
+private fun Timeline.windowUids(): List<Any> {
+    val window = Timeline.Window()
+    return List(windowCount) { getWindow(it, window).uid }
 }
