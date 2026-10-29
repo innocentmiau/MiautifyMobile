@@ -17,16 +17,37 @@ android {
         minSdk = 26
         targetSdk = 37
         versionCode = 1
-        versionName = "0.0.1"
+        versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // The release key is kept outside this repo. Its place and passwords come from Gradle
+    // properties: ~/.gradle/gradle.properties on my PC, ORG_GRADLE_PROJECT_* secrets in the
+    // release workflow. Without them, release builds still work but come out unsigned.
+    val releaseStore = providers.gradleProperty("miautifyStoreFile").orNull
+    signingConfigs {
+        if (releaseStore != null) {
+            create("release") {
+                storeFile = file(releaseStore)
+                storePassword = providers.gradleProperty("miautifyStorePassword").get()
+                keyAlias = providers.gradleProperty("miautifyKeyAlias").get()
+                keyPassword = providers.gradleProperty("miautifyKeyPassword").get()
+            }
+        }
+    }
+
     buildTypes {
+        // A different app id, so a debug build installs next to the release one instead of
+        // replacing it (they are signed with different keys, so it couldn't anyway).
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
         release {
+            signingConfig = signingConfigs.findByName("release")
             optimization {
                 enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
             }
         }
     }
