@@ -11,7 +11,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
@@ -21,6 +20,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import io.github.innocentmiau.miautify.library.Cover
 import io.github.innocentmiau.miautify.library.Covers
 import io.github.innocentmiau.miautify.library.MusicFolder
 import io.github.innocentmiau.miautify.library.Song
@@ -106,9 +106,9 @@ private fun Player.nowPlaying(): NowPlaying? {
  * for the notification, so the file isn't read twice, or else the folder's cover image.
  */
 @Composable
-fun rememberArtwork(player: Player?, nowPlaying: NowPlaying?): ImageBitmap? {
+fun rememberArtwork(player: Player?, nowPlaying: NowPlaying?): Cover {
     val context = LocalContext.current
-    val artwork by produceState<ImageBitmap?>(null, player, nowPlaying?.songId, nowPlaying?.hasArtwork) {
+    val artwork by produceState<Cover>(Cover.Loading, player, nowPlaying?.songId, nowPlaying?.hasArtwork) {
         // Read on the main thread like every player call, the rest on a background thread.
         val metadata = player?.mediaMetadata ?: return@produceState
         val embedded = metadata.artworkData
@@ -117,7 +117,7 @@ fun rememberArtwork(player: Player?, nowPlaying: NowPlaying?): ImageBitmap? {
             val bytes = embedded ?: folderImage?.let { uri ->
                 runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
             }
-            bytes?.let { Covers.thumbnail(it)?.asImageBitmap() }
+            bytes?.let { Covers.thumbnail(it)?.asImageBitmap() }?.let(Cover::Loaded) ?: Cover.None
         }
     }
     return artwork

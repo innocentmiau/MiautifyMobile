@@ -13,7 +13,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.security.MessageDigest
+import java.util.Collections
 import kotlin.math.roundToInt
+
+/** A cover as a screen shows it: still loading, known to have no picture, or the picture. */
+sealed interface Cover {
+    data object Loading : Cover
+
+    data object None : Cover
+
+    data class Loaded(val image: ImageBitmap) : Cover
+}
 
 /**
  * Song covers, read from the picture embedded in the mp3, or else from the folder's cover
@@ -33,27 +43,47 @@ object Covers {
         override fun sizeOf(key: String, value: ImageBitmap) = value.width * value.height * 4
     }
 
+    // Keys looked up already that have no picture, so scrolling back shows the music note at
+    // once instead of loading again. Tiny (one short text per song), so never trimmed.
+    private val missing: MutableSet<String> = Collections.synchronizedSet(HashSet())
+
     // At most two files read at once, so a fast scroll doesn't flood the storage.
     private val loading = Dispatchers.IO.limitedParallelism(2)
 
-    /** The thumbnail of [file] if it is in memory already, without waiting. */
-    fun cached(file: SongFile): ImageBitmap? =
-        memory.get(songKey(file)) ?: file.folderCoverId?.let { memory.get(folderKey(it)) }
+    /**
+     * The cover of [file] if it is known already, without waiting: in memory, or known to have
+     * none. Null when it must still be loaded. Cheap, since every row on screen asks.
+     */
+    fun cached(file: SongFile): Cover? {
+        val songKey = songKey(file)
+        memory.get(songKey)?.let { return Cover.Loaded(it) }
+        // Without its own picture, the folder's image is next.
+        if (songKey !in missing) return null
+        val coverId = file.folderCoverId ?: return Cover.None
+        val folderKey = folderKey(coverId)
+        memory.get(folderKey)?.let { return Cover.Loaded(it) }
+        return if (folderKey in missing) Cover.None else null
+    }
 
     /**
      * The thumbnail of [file]: its embedded picture, or else its folder's cover image (like
      * cover.jpg), or null when it has neither.
      */
-    suspend fun load(context: Context, folder: Uri, file: SongFile): ImageBitmap? = withContext(loading) {
+    suspend fun load(context: Context, folder: Uri, file: SongFile): Cover = withContext(loading) {
+        val image = loadImage(context, folder, file)
+        if (image != null) Cover.Loaded(image) else Cover.None
+    }
+
+    private fun loadImage(context: Context, folder: Uri, file: SongFile): ImageBitmap? {
         val dir = File(context.cacheDir, "covers").apply { mkdirs() }
         val embedded = thumbnailOf(dir, songKey(file)) {
             readEmbedded(context, MusicFolder.fileUri(folder, file))
         }
-        if (embedded != null) return@withContext embedded
+        if (embedded != null) return embedded
 
         // Shared by every song of the folder, so it is read and shrunk only once.
-        val coverId = file.folderCoverId ?: return@withContext null
-        thumbnailOf(dir, folderKey(coverId)) {
+        val coverId = file.folderCoverId ?: return null
+        return thumbnailOf(dir, folderKey(coverId)) {
             readFile(context, MusicFolder.documentUri(folder, coverId))
         }
     }
@@ -61,13 +91,15 @@ object Covers {
     /** The thumbnail saved as [key], from memory, then disk, then made from what [read] gives. */
     private fun thumbnailOf(dir: File, key: String, read: () -> ByteArray?): ImageBitmap? {
         memory.get(key)?.let { return it }
-        val saved = File(dir, "$key.jpg")
+        // The file name is a hash of the key: the key has slashes and colons a name can't have.
+        val saved = File(dir, "${sha1(key)}.jpg")
         val bitmap = if (saved.exists()) {
             // An empty file means "looked before, no picture".
             if (saved.length() == 0L) null else BitmapFactory.decodeFile(saved.path)
         } else {
             read()?.let(::thumbnail).also { write(it, saved) }
         }
+        if (bitmap == null) missing += key
         return bitmap?.asImageBitmap()?.also { memory.put(key, it) }
     }
 
@@ -110,10 +142,12 @@ object Covers {
 
     /** Changes when the song file changes, so an edited embedded cover is read again. */
     // SIZE is part of the keys, so changing it makes new thumbnails instead of reusing old ones.
-    private fun songKey(file: SongFile): String = sha1("song|$SIZE|${file.documentId}|${file.size}|${file.lastModified}")
+    // Plain text, hashed only for the file name on disk: hashing for every row on screen was
+    // work the main thread did while scrolling.
+    private fun songKey(file: SongFile): String = "song|$SIZE|${file.documentId}|${file.size}|${file.lastModified}"
 
     /** One per folder image. A cover.jpg replaced under the same name keeps its old thumbnail until the cache is cleared. */
-    private fun folderKey(coverId: String): String = sha1("folder|$SIZE|$coverId")
+    private fun folderKey(coverId: String): String = "folder|$SIZE|$coverId"
 
     private fun sha1(text: String): String =
         MessageDigest.getInstance("SHA-1").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }

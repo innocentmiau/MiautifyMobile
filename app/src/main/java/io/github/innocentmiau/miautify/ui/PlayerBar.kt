@@ -20,7 +20,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -28,6 +27,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import io.github.innocentmiau.miautify.R
+import io.github.innocentmiau.miautify.library.Cover
 import io.github.innocentmiau.miautify.library.formatDuration
 import io.github.innocentmiau.miautify.playback.NowPlaying
 import io.github.innocentmiau.miautify.ui.theme.MiautifyTheme
@@ -39,7 +39,7 @@ import io.github.innocentmiau.miautify.ui.theme.MiautifyTheme
 @Composable
 fun PlayerBar(
     nowPlaying: NowPlaying,
-    cover: ImageBitmap?,
+    cover: Cover,
     positionMs: Long,
     onSeek: (positionMs: Long) -> Unit,
     onPrevious: () -> Unit,
@@ -180,7 +180,7 @@ private fun PlayerBarPreview() {
                 "1", "First Song", "Some Artist", isPlaying = true, durationMs = 198_000,
                 shuffle = true, repeatMode = Player.REPEAT_MODE_ONE
             ),
-            cover = null,
+            cover = Cover.None,
             positionMs = 67_000,
             onSeek = {},
             onPrevious = {},
