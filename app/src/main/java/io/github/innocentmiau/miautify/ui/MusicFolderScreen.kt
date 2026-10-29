@@ -3,20 +3,26 @@ package io.github.innocentmiau.miautify.ui
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -25,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -106,7 +113,7 @@ private data class LibraryActions(
     val playSong: (songs: List<Song>, index: Int) -> Unit = { _, _ -> }
 )
 
-/** [scan] is null when no folder was chosen yet. */
+/** [scan] is null when no folder was chosen yet, or for a moment at launch until the cached list is read. */
 @Composable
 private fun MusicFolderContent(
     folder: Uri?,
@@ -120,7 +127,13 @@ private fun MusicFolderContent(
     modifier: Modifier = Modifier
 ) {
     when (scan) {
-        null -> Message(stringResource(R.string.library_empty), actions.chooseFolder, modifier = modifier)
+        // With a folder, the cached list is on its way: a loading screen instead of "Nothing
+        // to play yet", which would be wrong for the half second it shows.
+        null -> if (folder != null) {
+            Loading(modifier)
+        } else {
+            Message(stringResource(R.string.library_empty), actions.chooseFolder, modifier = modifier)
+        }
         ScanState.Failed -> Message(stringResource(R.string.library_scan_failed), actions.chooseFolder, modifier = modifier)
         ScanState.Scanning -> Scanning(modifier)
         is ScanState.Done ->
@@ -158,6 +171,24 @@ private fun Message(
                 Text(stringResource(R.string.library_refresh))
             }
         }
+    }
+}
+
+/** The app icon over a progress bar, while the list is read at launch. */
+@Composable
+private fun Loading(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // The launcher icon is two layers, which Compose can't draw as one: stacked here,
+        // cut into a circle like on the home screen. Decorative, so not read aloud.
+        Box(modifier = Modifier.size(96.dp).clip(CircleShape)) {
+            Image(painterResource(R.drawable.ic_launcher_background), contentDescription = null, modifier = Modifier.fillMaxSize())
+            Image(painterResource(R.drawable.ic_launcher_foreground), contentDescription = null, modifier = Modifier.fillMaxSize())
+        }
+        LinearProgressIndicator(modifier = Modifier.width(120.dp))
     }
 }
 
@@ -250,6 +281,14 @@ private fun SongList(
 private fun NoFolderPreview() {
     MiautifyTheme {
         MusicFolderContent(folder = null, folderName = null, scan = null, sorting = Sorting(), brokenFiles = emptyMap(), playingSongId = null, refreshing = false, actions = LibraryActions(), modifier = Modifier.fillMaxSize())
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun LoadingPreview() {
+    MiautifyTheme {
+        MusicFolderContent(folder = Uri.EMPTY, folderName = null, scan = null, sorting = Sorting(), brokenFiles = emptyMap(), playingSongId = null, refreshing = false, actions = LibraryActions(), modifier = Modifier.fillMaxSize())
     }
 }
 
