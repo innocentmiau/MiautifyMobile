@@ -1,0 +1,70 @@
+name: Release
+
+# Pushing a version tag (git tag v0.1.0, then git push origin v0.1.0) builds the signed APK
+# and publishes it as a GitHub release.
+on:
+  push:
+    tags: ["v*"]
+
+# Creating a release needs write access to the repo's contents.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: gradle/actions/wrapper-validation@v6
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: gradle
+
+      # The keystore is a binary file, so its secret holds it as base64 text. It is written
+      # to the runner's temporary folder, which is wiped when the job ends.
+      - name: Write the release key
+        run: echo "${{ secrets.MIAUTIFY_KEYSTORE_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/release.jks"
+
+      # Gradle reads ORG_GRADLE_PROJECT_<name> variables as the property <name>, the same
+      # ones ~/.gradle/gradle.properties gives a local build.
+      - name: Build, test and sign
+        run: ./gradlew testDebugUnitTest lintRelease assembleRelease
+        env:
+          ORG_GRADLE_PROJECT_miautifyStoreFile: ${{ runner.temp }}/release.jks
+          ORG_GRADLE_PROJECT_miautifyStorePassword: ${{ secrets.MIAUTIFY_STORE_PASSWORD }}
+          ORG_GRADLE_PROJECT_miautifyKeyAlias: ${{ secrets.MIAUTIFY_KEY_ALIAS }}
+          ORG_GRADLE_PROJECT_miautifyKeyPassword: ${{ secrets.MIAUTIFY_KEY_PASSWORD }}
+
+      # A tag that doesn't match versionName would publish an APK that says another version.
+      # The APK is only named app-release.apk when it was signed, so an unsigned one fails
+      # here too instead of being published.
+      - name: Check the version and the signature
+        run: |
+          version=$(jq -r '.elements[0].versionName' app/build/outputs/apk/release/output-metadata.json)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match versionName $version in app/build.gradle.kts"
+            exit 1
+          fi
+          test -f app/build/outputs/apk/release/app-release.apk
+          mv app/build/outputs/apk/release/app-release.apk "miautify-$version.apk"
+
+      # The release notes are this version's section of CHANGELOG.md: the lines after its
+      # "## [x.y.z]" heading, up to the next "## " heading.
+      - name: Publish the release
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          awk -v heading="## [$version]" '
+            index($0, heading) == 1 { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          gh release create "$GITHUB_REF_NAME" "miautify-$version.apk" \
+            --title "Miautify $version" --notes-file notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}
