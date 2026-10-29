@@ -83,6 +83,14 @@ fun folders(songs: List<Song>): List<SongGroup> =
         }
         .sortedWith(compareBy(textOrder, SongGroup::id))
 
+/** How long all the group's songs last together. Songs whose length isn't known count as 0. */
+val SongGroup.durationMs: Long
+    get() = songs.sumOf { it.tags?.durationMs ?: 0L }
+
+/** The play counts of the group's songs added up. [playCounts] is by document id; missing means 0. */
+fun SongGroup.playCount(playCounts: Map<String, Int>): Int =
+    songs.sumOf { playCounts[it.file.documentId] ?: 0 }
+
 /** The orders albums, artists and folders can be browsed in. */
 enum class GroupOrder {
     /** The most listened to first: the play counts of their songs added up. */
@@ -109,7 +117,7 @@ fun sortGroups(
     playCounts: Map<String, Int>,
     lastPlayed: Map<String, Long>
 ): List<SongGroup> = when (order) {
-    GroupOrder.MOST_PLAYED -> groups.sortedByDescending { group -> group.songs.sumOf { playCounts[it.file.documentId] ?: 0 } }
+    GroupOrder.MOST_PLAYED -> groups.sortedByDescending { it.playCount(playCounts) }
     // 0 for never played: before 1970, so after every real time.
     GroupOrder.RECENTLY_PLAYED -> groups.sortedByDescending { group -> group.songs.maxOf { lastPlayed[it.file.documentId] ?: 0L } }
     GroupOrder.NAME -> groups

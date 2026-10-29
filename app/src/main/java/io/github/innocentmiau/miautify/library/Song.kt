@@ -41,3 +41,12 @@ fun formatDuration(ms: Long): String {
         "%d:%02d".format(minutes, seconds)
     }
 }
+
+/**
+ * A total length, like an album's, rounded to the nearest minute and split into hours and
+ * minutes, for "1 h 12 min". Any length under half a minute still shows as 1 minute.
+ */
+fun hoursAndMinutes(ms: Long): Pair<Long, Long> {
+    val minutes = ((ms + 30_000) / 60_000).coerceAtLeast(if (ms > 0) 1 else 0)
+    return minutes / 60 to minutes % 60
+}

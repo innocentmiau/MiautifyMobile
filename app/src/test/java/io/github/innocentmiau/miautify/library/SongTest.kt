@@ -41,4 +41,14 @@ class SongTest {
         assertEquals("1:00:00", formatDuration(3_600_000))
         assertEquals("1:02:03", formatDuration(3_723_000))
     }
+
+    @Test
+    fun lengthsRoundToTheNearestMinuteAndSplitIntoHours() {
+        assertEquals(0L to 0L, hoursAndMinutes(0))
+        // A short length still shows as a minute, not "0 min".
+        assertEquals(0L to 1L, hoursAndMinutes(10_000))
+        assertEquals(0L to 47L, hoursAndMinutes(46 * 60_000L + 40_000))
+        assertEquals(1L to 0L, hoursAndMinutes(59 * 60_000L + 45_000))
+        assertEquals(1L to 12L, hoursAndMinutes(72 * 60_000L))
+    }
 }

@@ -12,6 +12,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,7 +27,10 @@ import io.github.innocentmiau.miautify.R
 import io.github.innocentmiau.miautify.library.GroupKind
 import io.github.innocentmiau.miautify.library.ScanState
 import io.github.innocentmiau.miautify.library.isBroken
+import io.github.innocentmiau.miautify.library.durationMs
 import io.github.innocentmiau.miautify.library.groupSongs
+import io.github.innocentmiau.miautify.library.hoursAndMinutes
+import io.github.innocentmiau.miautify.library.playCount
 import io.github.innocentmiau.miautify.playback.playSongs
 
 /**
@@ -48,6 +52,10 @@ fun GroupScreen(
     val allSongs = (library.scan as? ScanState.Done)?.songs.orEmpty()
     val group = remember(allSongs, kind, id) { groupSongs(allSongs, kind).find { it.id == id } }
 
+    // Read again whenever the song changes, so the plays count up while you listen here: the
+    // song before has had its chance to reach 30 seconds by then.
+    LaunchedEffect(playingSongId) { library.loadPlayCounts() }
+
     Column(modifier = modifier) {
         Row(
             modifier = Modifier.padding(end = 16.dp, top = 8.dp, bottom = 8.dp),
@@ -65,14 +73,32 @@ fun GroupScreen(
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
-                    val count = pluralStringResource(R.plurals.library_song_count, group.songs.size, group.songs.size)
                     val detail = if (kind == GroupKind.ALBUM) {
                         group.detail ?: stringResource(R.string.various_artists)
                     } else {
                         group.detail
                     }
+                    if (detail != null) {
+                        Text(
+                            text = detail,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    // "12 songs · 47 min · 23 plays". The length is left out when no song's is known.
+                    val songs = pluralStringResource(R.plurals.library_song_count, group.songs.size, group.songs.size)
+                    val (hours, minutes) = hoursAndMinutes(group.durationMs)
+                    val length = when {
+                        group.durationMs == 0L -> null
+                        hours > 0 -> stringResource(R.string.length_hours, hours, minutes)
+                        else -> stringResource(R.string.length_minutes, minutes)
+                    }
+                    val playCount = group.playCount(library.playCounts)
+                    val plays = pluralStringResource(R.plurals.library_play_count, playCount, playCount)
                     Text(
-                        text = listOfNotNull(detail, count).joinToString(" · "),
+                        text = listOfNotNull(songs, length, plays).joinToString(" · "),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,

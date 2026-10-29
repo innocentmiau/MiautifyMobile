@@ -12,8 +12,9 @@ class GroupsTest {
         track: Int? = null,
         disc: Int? = null,
         folder: String = "",
-        lastModified: Long = 0
-    ) = Song(SongFile(id, "$id.mp3", folder, lastModified = lastModified), SongTags(id, artist, album, null, albumArtist, track, disc))
+        lastModified: Long = 0,
+        durationMs: Long? = null
+    ) = Song(SongFile(id, "$id.mp3", folder, lastModified = lastModified), SongTags(id, artist, album, durationMs, albumArtist, track, disc))
 
     private fun ids(group: SongGroup) = group.songs.map { it.file.documentId }
 
@@ -138,5 +139,19 @@ class GroupsTest {
 
         assertEquals(2, searchGroups(groups, "").size)
         assertEquals(listOf("Night Songs"), searchGroups(groups, "cinderella night").map { it.name })
+    }
+
+    @Test
+    fun aGroupAddsUpItsLengthAndPlaysAndSkipsWhatIsUnknown() {
+        val album = albums(
+            listOf(
+                song("1", album = "A", durationMs = 180_000),
+                song("2", album = "A", durationMs = 240_000),
+                song("3", album = "A")
+            )
+        ).single()
+
+        assertEquals(420_000L, album.durationMs)
+        assertEquals(7, album.playCount(mapOf("1" to 5, "3" to 2, "elsewhere" to 9)))
     }
 }
