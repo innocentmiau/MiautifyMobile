@@ -60,13 +60,13 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         private set
 
     /**
-     * The search screen's text and chosen chip. Kept here and not in the screen, so they are
-     * still there when you come back from an album or artist opened from the results.
+     * The browse screen's search text and chosen chip. Kept here and not in the screen, so they
+     * are still there when you come back from an album or artist opened from it. Albums first.
      */
     var searchQuery by mutableStateOf("")
         private set
 
-    var searchTab by mutableStateOf(SearchTab.SONGS)
+    var searchTab by mutableStateOf(SearchTab.ALBUMS)
         private set
 
     init {

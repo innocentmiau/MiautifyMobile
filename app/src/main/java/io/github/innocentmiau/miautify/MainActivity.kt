@@ -49,8 +49,8 @@ fun MiautifyApp() {
     val player = rememberPlayer()
     val nowPlaying = rememberNowPlaying(player)
     // Which screen shows. Saveable, so a rotation keeps you where you were. An opened group
-    // sits on top of search, and going back from it returns to the search as you left it.
-    var searching by rememberSaveable { mutableStateOf(false) }
+    // sits on top of browsing, and going back from it returns to browsing as you left it.
+    var browsing by rememberSaveable { mutableStateOf(false) }
     var openKind by rememberSaveable { mutableStateOf<GroupKind?>(null) }
     var openId by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -96,7 +96,7 @@ fun MiautifyApp() {
                 },
                 modifier = screenModifier
             )
-        } else if (searching) {
+        } else if (browsing) {
             SearchScreen(
                 player = player,
                 playingSongId = nowPlaying?.songId,
@@ -104,14 +104,14 @@ fun MiautifyApp() {
                     openKind = groupKind
                     openId = groupId
                 },
-                onClose = { searching = false },
+                onClose = { browsing = false },
                 modifier = screenModifier
             )
         } else {
             MusicFolderScreen(
                 player = player,
                 playingSongId = nowPlaying?.songId,
-                onSearch = { searching = true },
+                onBrowse = { browsing = true },
                 modifier = screenModifier
             )
         }

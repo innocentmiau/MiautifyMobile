@@ -30,12 +30,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -59,17 +56,18 @@ import io.github.innocentmiau.miautify.library.sortSongs
 import io.github.innocentmiau.miautify.playback.playSongs
 
 /** What the search looks through: songs, or groups of songs (null for songs). */
+// The chips show in this order.
 enum class SearchTab(val kind: GroupKind?, val label: Int, val placeholder: Int) {
-    SONGS(null, R.string.search_tab_songs, R.string.search_placeholder_songs),
     ALBUMS(GroupKind.ALBUM, R.string.search_tab_albums, R.string.search_placeholder_albums),
     ARTISTS(GroupKind.ARTIST, R.string.search_tab_artists, R.string.search_placeholder_artists),
-    FOLDERS(GroupKind.FOLDER, R.string.search_tab_folders, R.string.search_placeholder_folders)
+    FOLDERS(GroupKind.FOLDER, R.string.search_tab_folders, R.string.search_placeholder_folders),
+    SONGS(null, R.string.search_tab_songs, R.string.search_placeholder_songs)
 }
 
 /**
- * Searches the library as you type: songs, albums, artists or folders, picked with the chips.
- * With an empty search, albums, artists and folders show all of them, so this is also where
- * you browse them. Tapping a song plays the results from there; tapping a group opens it.
+ * Browses the library: albums, artists or folders, picked with the chips, all of them shown
+ * right away. The field at the top narrows down the chosen chip as you type; the Songs chip
+ * searches songs. Tapping a song plays the results from there; tapping a group opens it.
  */
 @Composable
 fun SearchScreen(
@@ -252,18 +250,13 @@ private fun Hint(text: String) {
     }
 }
 
-/** The text field, with a back arrow and a clear button. Focused when the screen opens, so the keyboard is up. */
+/** The text field, with a back arrow and a clear button. The keyboard only opens when it is tapped. */
 @Composable
 private fun SearchField(query: String, placeholder: String, onQueryChange: (String) -> Unit, onClose: () -> Unit) {
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focus.requestFocus() }
-
     TextField(
         value = query,
         onValueChange = onQueryChange,
-        modifier = Modifier
-            .fillMaxWidth()
-            .focusRequester(focus),
+        modifier = Modifier.fillMaxWidth(),
         placeholder = { Text(placeholder) },
         leadingIcon = {
             IconButton(onClick = onClose) {

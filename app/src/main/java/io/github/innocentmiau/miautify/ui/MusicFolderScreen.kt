@@ -56,7 +56,7 @@ import io.github.innocentmiau.miautify.ui.theme.TextBright
 fun MusicFolderScreen(
     player: Player?,
     playingSongId: String?,
-    onSearch: () -> Unit,
+    onBrowse: () -> Unit,
     modifier: Modifier = Modifier,
     // Gives the same LibraryViewModel back after a rotation, instead of a new one.
     library: LibraryViewModel = viewModel()
@@ -84,7 +84,7 @@ fun MusicFolderScreen(
         refreshing = library.refreshing,
         actions = LibraryActions(
             sort = library::sortBy,
-            search = onSearch,
+            browse = onBrowse,
             // Opens the picker inside the current folder, so changing it is quicker.
             chooseFolder = { picker.launch(library.folder) },
             refresh = library::refresh,
@@ -100,7 +100,7 @@ fun MusicFolderScreen(
 /** What the library screen's buttons and rows do, in one value instead of five parameters. */
 private data class LibraryActions(
     val sort: (SortOrder, reversed: Boolean) -> Unit = { _, _ -> },
-    val search: () -> Unit = {},
+    val browse: () -> Unit = {},
     val chooseFolder: () -> Unit = {},
     val refresh: () -> Unit = {},
     val playSong: (songs: List<Song>, index: Int) -> Unit = { _, _ -> }
@@ -212,8 +212,8 @@ private fun SongList(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            IconButton(onClick = actions.search) {
-                Icon(painterResource(R.drawable.ic_search), stringResource(R.string.search))
+            IconButton(onClick = actions.browse) {
+                Icon(painterResource(R.drawable.ic_library_music), stringResource(R.string.browse))
             }
             SortMenu(sorting.order, sorting.reversed, actions.sort)
             TextButton(onClick = actions.chooseFolder) {
