@@ -83,6 +83,28 @@ fun folders(songs: List<Song>): List<SongGroup> =
         }
         .sortedWith(compareBy(textOrder, SongGroup::id))
 
+/** The orders albums, artists and folders can be browsed in. */
+enum class GroupOrder {
+    /** The most listened to first: the play counts of their songs added up. */
+    MOST_PLAYED,
+    /** By name, or by path for folders. */
+    NAME,
+    /** The newest file first: the group whose most recently added or changed song is newest. */
+    NEWEST
+}
+
+/**
+ * [groups] in [order]. They come in from [groupSongs] by name, and the sorts here keep that
+ * order for ties, so groups with the same play count, or never played, stay by name.
+ *
+ * @param playCounts Play counts by document id, for [GroupOrder.MOST_PLAYED]. Missing means 0.
+ */
+fun sortGroups(groups: List<SongGroup>, order: GroupOrder, playCounts: Map<String, Int>): List<SongGroup> = when (order) {
+    GroupOrder.MOST_PLAYED -> groups.sortedByDescending { group -> group.songs.sumOf { playCounts[it.file.documentId] ?: 0 } }
+    GroupOrder.NAME -> groups
+    GroupOrder.NEWEST -> groups.sortedByDescending { group -> group.songs.maxOf { it.file.lastModified } }
+}
+
 /** [groups] whose name or detail has every word of [query]. An empty query keeps them all: browsing. */
 fun searchGroups(groups: List<SongGroup>, query: String): List<SongGroup> {
     val words = searchWords(query)

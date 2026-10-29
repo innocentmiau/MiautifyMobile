@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import io.github.innocentmiau.miautify.data.MiautifyDatabase
 import io.github.innocentmiau.miautify.library.MusicFolder
 import io.github.innocentmiau.miautify.library.BrokenFile
+import io.github.innocentmiau.miautify.library.GroupOrder
 import io.github.innocentmiau.miautify.library.ScanState
 import io.github.innocentmiau.miautify.library.SortOrder
 import io.github.innocentmiau.miautify.library.scanLibrary
@@ -44,9 +45,14 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     var sortReversed by mutableStateOf(settings.sortReversed)
         private set
 
+    /** How albums, artists and folders are browsed. */
+    var groupOrder by mutableStateOf(settings.groupOrder)
+        private set
+
     /**
-     * Play counts by document id, for sorting by most played. Read when the app opens and when
-     * that sort is picked, not live, so the list doesn't reorder itself while a song plays.
+     * Play counts by document id, for sorting by most played. Read when the app opens, when
+     * that sort is picked and when browsing opens, not live, so a list doesn't reorder itself
+     * while a song plays.
      */
     var playCounts by mutableStateOf<Map<String, Int>>(emptyMap())
         private set
@@ -100,7 +106,13 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         if (order == SortOrder.MOST_PLAYED) loadPlayCounts()
     }
 
-    private fun loadPlayCounts() {
+    fun sortGroupsBy(order: GroupOrder) {
+        groupOrder = order
+        settings.groupOrder = order
+        if (order == GroupOrder.MOST_PLAYED) loadPlayCounts()
+    }
+
+    fun loadPlayCounts() {
         viewModelScope.launch {
             val plays = MiautifyDatabase.get(getApplication()).plays().all()
             playCounts = plays.associate { it.documentId to it.playCount }

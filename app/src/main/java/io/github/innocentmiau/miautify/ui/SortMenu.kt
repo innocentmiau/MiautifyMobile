@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import io.github.innocentmiau.miautify.R
+import io.github.innocentmiau.miautify.library.GroupOrder
 import io.github.innocentmiau.miautify.library.SortOrder
 
 /** How the list is sorted, with the play counts that "most played" needs. */
@@ -64,6 +65,38 @@ fun SortMenu(order: SortOrder, reversed: Boolean, onSort: (SortOrder, reversed: 
                 },
                 leadingIcon = { CheckMark(visible = reversed) }
             )
+        }
+    }
+}
+
+/** The menu's label for each way of browsing groups. */
+private val GroupOrder.label: Int
+    get() = when (this) {
+        GroupOrder.MOST_PLAYED -> R.string.sort_most_played
+        GroupOrder.NAME -> R.string.sort_a_to_z
+        GroupOrder.NEWEST -> R.string.sort_newest
+    }
+
+/** The sort button for albums, artists and folders, with a check on the current order. */
+@Composable
+fun GroupSortMenu(order: GroupOrder, onSort: (GroupOrder) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+
+    Box {
+        IconButton(onClick = { open = true }) {
+            Icon(painterResource(R.drawable.ic_sort), stringResource(R.string.sort))
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            for (option in GroupOrder.entries) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(option.label)) },
+                    onClick = {
+                        onSort(option)
+                        open = false
+                    },
+                    leadingIcon = { CheckMark(visible = option == order) }
+                )
+            }
         }
     }
 }

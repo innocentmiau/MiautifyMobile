@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +53,7 @@ import io.github.innocentmiau.miautify.library.SongGroup
 import io.github.innocentmiau.miautify.library.SongSearch
 import io.github.innocentmiau.miautify.library.groupSongs
 import io.github.innocentmiau.miautify.library.searchGroups
+import io.github.innocentmiau.miautify.library.sortGroups
 import io.github.innocentmiau.miautify.library.sortSongs
 import io.github.innocentmiau.miautify.playback.playSongs
 
@@ -89,16 +91,29 @@ fun SearchScreen(
     val query = library.searchQuery
     val allSongs = (library.scan as? ScanState.Done)?.songs.orEmpty()
 
+    // Fresh play counts each time browsing opens, so "most played" includes what was just heard.
+    LaunchedEffect(Unit) { library.loadPlayCounts() }
+
     Column(modifier = modifier) {
         SearchField(query, stringResource(tab.placeholder), onQueryChange = library::search, onClose = close)
-        TabChips(tab, onSelect = library::showSearchTab)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // Sorts what the chip shows: groups have their own orders, songs use the song list's.
+            if (tab.kind == null) {
+                SortMenu(library.sortOrder, library.sortReversed, library::sortBy)
+            } else {
+                GroupSortMenu(library.groupOrder, library::sortGroupsBy)
+            }
+            TabChips(tab, onSelect = library::showSearchTab)
+        }
 
         val kind = tab.kind
         if (kind == null) {
             SongResults(allSongs, query, library, player, playingSongId)
         } else {
-            // Grouped once per scan update, not on every keystroke.
-            val groups = remember(allSongs, kind) { groupSongs(allSongs, kind) }
+            // Grouped and sorted once per scan update or sort change, not on every keystroke.
+            val groups = remember(allSongs, kind, library.groupOrder, library.playCounts) {
+                sortGroups(groupSongs(allSongs, kind), library.groupOrder, library.playCounts)
+            }
             val results = remember(groups, query) { searchGroups(groups, query) }
             when {
                 results.isEmpty() -> Hint(stringResource(R.string.search_nothing))
@@ -220,7 +235,7 @@ private fun TabChips(selected: SearchTab, onSelect: (SearchTab) -> Unit) {
     Row(
         modifier = Modifier
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 12.dp),
+            .padding(end = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         for (tab in SearchTab.entries) {

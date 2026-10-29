@@ -11,8 +11,9 @@ class GroupsTest {
         albumArtist: String? = null,
         track: Int? = null,
         disc: Int? = null,
-        folder: String = ""
-    ) = Song(SongFile(id, "$id.mp3", folder), SongTags(id, artist, album, null, albumArtist, track, disc))
+        folder: String = "",
+        lastModified: Long = 0
+    ) = Song(SongFile(id, "$id.mp3", folder, lastModified = lastModified), SongTags(id, artist, album, null, albumArtist, track, disc))
 
     private fun ids(group: SongGroup) = group.songs.map { it.file.documentId }
 
@@ -80,6 +81,39 @@ class GroupsTest {
         assertEquals(listOf("", "Rock/Album"), folders.map { it.id })
         assertEquals("Album", folders[1].name)
         assertEquals("Rock", folders[1].detail)
+    }
+
+    @Test
+    fun mostPlayedAddsUpTheSongsAndTiesStayByName() {
+        val groups = albums(
+            listOf(
+                song("a1", album = "A"), song("a2", album = "A"),
+                song("b1", album = "B"),
+                song("c1", album = "C"),
+                song("d1", album = "D")
+            )
+        )
+        // A: 2 + 2 = 4 beats B's 3. C and D were never played and stay by name.
+        val counts = mapOf("a1" to 2, "a2" to 2, "b1" to 3)
+
+        assertEquals(listOf("A", "B", "C", "D"), sortGroups(groups, GroupOrder.MOST_PLAYED, counts).map { it.name })
+        assertEquals(listOf("B", "A", "C", "D"), sortGroups(groups, GroupOrder.MOST_PLAYED, counts + ("b1" to 5)).map { it.name })
+    }
+
+    @Test
+    fun newestGoesByTheGroupsNewestSong() {
+        val groups = albums(
+            listOf(
+                song("old", album = "Old", lastModified = 100),
+                song("mixed1", album = "Mixed", lastModified = 50),
+                song("mixed2", album = "Mixed", lastModified = 300),
+                song("new", album = "New", lastModified = 200)
+            )
+        )
+
+        // One song added to Mixed last makes it the newest album.
+        assertEquals(listOf("Mixed", "New", "Old"), sortGroups(groups, GroupOrder.NEWEST, emptyMap()).map { it.name })
+        assertEquals(listOf("Mixed", "New", "Old"), sortGroups(groups, GroupOrder.NAME, emptyMap()).map { it.name })
     }
 
     @Test

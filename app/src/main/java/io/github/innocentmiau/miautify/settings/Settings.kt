@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.core.content.edit
 import androidx.core.net.toUri
+import io.github.innocentmiau.miautify.library.GroupOrder
 import io.github.innocentmiau.miautify.library.SortOrder
 
 /** Small values the app remembers between launches. */
@@ -33,11 +34,17 @@ class Settings(context: Context) {
         get() = prefs.getBoolean(KEY_SORT_REVERSED, false)
         set(value) = prefs.edit { putBoolean(KEY_SORT_REVERSED, value) }
 
+    /** How albums, artists and folders are browsed, most played first by default. Saved by name too. */
+    var groupOrder: GroupOrder
+        get() = GroupOrder.entries.find { it.name == prefs.getString(KEY_GROUP_ORDER, null) } ?: GroupOrder.MOST_PLAYED
+        set(value) = prefs.edit { putString(KEY_GROUP_ORDER, value.name) }
+
     private companion object {
         const val KEY_MUSIC_FOLDER = "music_folder"
         const val KEY_SHUFFLE = "shuffle"
         const val KEY_REPEAT_MODE = "repeat_mode"
         const val KEY_SORT_ORDER = "sort_order"
         const val KEY_SORT_REVERSED = "sort_reversed"
+        const val KEY_GROUP_ORDER = "group_order"
     }
 }
