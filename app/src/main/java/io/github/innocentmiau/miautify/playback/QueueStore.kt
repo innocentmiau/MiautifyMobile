@@ -32,12 +32,15 @@ class QueueStore(private val context: Context) {
         }
     }
 
-    /** Loads the saved queue into [player], paused, unless the app lost access to its folder. */
-    fun restore(player: Player) {
-        val queue = runCatching { decodeQueue(file.readText()) }.getOrNull() ?: return
+    /** The saved queue, or null without one or when the app lost access to its folder. Slow: call off the main thread. */
+    fun load(): SavedQueue? {
+        val queue = runCatching { decodeQueue(file.readText()) }.getOrNull() ?: return null
         val firstUri = queue.songs.first().uri.toUri()
-        if (!MusicFolder.hasAccess(context, MusicFolder.folderOf(firstUri))) return
+        return queue.takeIf { MusicFolder.hasAccess(context, MusicFolder.folderOf(firstUri)) }
+    }
 
+    /** Puts [queue] from [load] into [player], paused. On the main thread, like every player call. */
+    fun restore(player: Player, queue: SavedQueue) {
         player.setMediaItems(queue.songs.map { it.toMediaItem() }, queue.index, queue.positionMs)
         player.prepare()
     }

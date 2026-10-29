@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Owns the player, so music keeps playing with the screen off or the app closed. The media
@@ -26,6 +27,10 @@ import kotlinx.coroutines.launch
 class PlaybackService : MediaSessionService() {
     private var session: MediaSession? = null
     private lateinit var queueStore: QueueStore
+
+    // False until the saved queue was read back. Saving before that would write the empty
+    // player over the saved queue, for example if the service ended right after starting.
+    private var queueRestored = false
 
     // Writes the queue file in the background, one write at a time and in order.
     private val saveScope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
@@ -64,7 +69,14 @@ class PlaybackService : MediaSessionService() {
         player.repeatMode = settings.repeatMode
 
         queueStore = QueueStore(this)
-        queueStore.restore(player)
+        mainScope.launch {
+            // Read off the main thread: a big library makes a big file, and the app's screens
+            // share this thread, so reading it here held up the first screen.
+            val saved = withContext(Dispatchers.IO) { queueStore.load() }
+            // Not over a list the user already started meanwhile.
+            if (saved != null && player.mediaItemCount == 0) queueStore.restore(player, saved)
+            queueRestored = true
+        }
         player.addListener(object : Player.Listener {
             override fun onEvents(player: Player, events: Player.Events) {
                 // New queue, next song, play or pause, or a seek. Not while time just passes.
@@ -118,6 +130,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     private fun saveQueue(player: Player) {
+        if (!queueRestored) return
         // Read the player here on the main thread, then write the file in the background.
         val queue = queueStore.snapshot(player)
         saveScope.launch { queueStore.write(queue) }
