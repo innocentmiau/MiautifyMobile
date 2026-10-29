@@ -28,7 +28,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,7 +49,6 @@ import io.github.innocentmiau.miautify.library.Song
 import io.github.innocentmiau.miautify.library.SongFile
 import io.github.innocentmiau.miautify.library.SongTags
 import io.github.innocentmiau.miautify.library.formatDuration
-import io.github.innocentmiau.miautify.library.sortSongs
 import io.github.innocentmiau.miautify.playback.playSongs
 import io.github.innocentmiau.miautify.ui.theme.MiautifyTheme
 import io.github.innocentmiau.miautify.ui.theme.TextBright
@@ -86,6 +84,7 @@ fun MusicFolderScreen(
         folderName = library.folderName,
         scan = library.scan,
         sorting = Sorting(library.sortOrder, library.sortReversed, library.playCounts),
+        sortedSongs = library.lists?.songs,
         brokenFiles = library.brokenFiles,
         playingSongId = playingSongId,
         refreshing = library.refreshing,
@@ -113,13 +112,17 @@ private data class LibraryActions(
     val playSong: (songs: List<Song>, index: Int) -> Unit = { _, _ -> }
 )
 
-/** [scan] is null when no folder was chosen yet, or for a moment at launch until the cached list is read. */
+/**
+ * [scan] is null when no folder was chosen yet, or for a moment at launch until the cached list
+ * is read. [sortedSongs] are its songs in [sorting], null while they are sorted.
+ */
 @Composable
 private fun MusicFolderContent(
     folder: Uri?,
     folderName: String?,
     scan: ScanState?,
     sorting: Sorting,
+    sortedSongs: List<Song>?,
     brokenFiles: Map<String, BrokenFile>,
     playingSongId: String?,
     refreshing: Boolean,
@@ -141,7 +144,7 @@ private fun MusicFolderContent(
                 // No list to pull down here, so the message gets its own Refresh button.
                 Message(stringResource(R.string.library_no_songs), actions.chooseFolder, modifier, onRefresh = actions.refresh)
             } else {
-                SongList(folder, folderName, scan, sorting, brokenFiles, playingSongId, refreshing, actions, modifier)
+                SongList(folder, folderName, scan, sorting, sortedSongs, brokenFiles, playingSongId, refreshing, actions, modifier)
             }
     }
 }
@@ -210,17 +213,13 @@ private fun SongList(
     folderName: String?,
     scan: ScanState.Done,
     sorting: Sorting,
+    sortedSongs: List<Song>?,
     brokenFiles: Map<String, BrokenFile>,
     playingSongId: String?,
     refreshing: Boolean,
     actions: LibraryActions,
     modifier: Modifier = Modifier
 ) {
-    // Sorted again only when the songs or the sorting change, not on every redraw. Songs play
-    // in this order: the list shown is the list played.
-    val songs = remember(scan.songs, sorting) {
-        sortSongs(scan.songs, sorting.order, sorting.reversed, sorting.playCounts)
-    }
     Column(modifier = modifier) {
         Row(
             modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp),
@@ -237,7 +236,7 @@ private fun SongList(
                     text = when {
                         scan.checking -> stringResource(R.string.library_checking)
                         scan.readingTags -> stringResource(R.string.library_reading_tags, scan.tagsRead, scan.tagsToRead)
-                        else -> pluralStringResource(R.plurals.library_song_count, songs.size, songs.size)
+                        else -> pluralStringResource(R.plurals.library_song_count, scan.songs.size, scan.songs.size)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -254,22 +253,29 @@ private fun SongList(
 
         // Pull the list down from the top to look for new, changed or removed files.
         PullToRefreshBox(isRefreshing = refreshing, onRefresh = actions.refresh, modifier = Modifier.fillMaxSize()) {
-            // Only the rows on screen are built, so a library of thousands of songs scrolls smoothly.
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                itemsIndexed(songs, key = { _, song -> song.file.documentId }) { index, song ->
-                    SongRow(
-                        folder = folder,
-                        song = song,
-                        // Only shown when sorted by it, where it explains the order.
-                        playCount = if (sorting.order == SortOrder.MOST_PLAYED) {
-                            sorting.playCounts[song.file.documentId] ?: 0
-                        } else {
-                            null
-                        },
-                        isPlaying = song.file.documentId == playingSongId,
-                        broken = song.isBroken(brokenFiles),
-                        onClick = { actions.playSong(songs, index) }
-                    )
+            // The songs play in the order shown: the list shown is the list played.
+            val songs = sortedSongs
+            if (songs == null) {
+                // Being sorted in the background, a moment for a big library.
+                SongRowsPlaceholder()
+            } else {
+                // Only the rows on screen are built, so a library of thousands of songs scrolls smoothly.
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    itemsIndexed(songs, key = { _, song -> song.file.documentId }) { index, song ->
+                        SongRow(
+                            folder = folder,
+                            song = song,
+                            // Only shown when sorted by it, where it explains the order.
+                            playCount = if (sorting.order == SortOrder.MOST_PLAYED) {
+                                sorting.playCounts[song.file.documentId] ?: 0
+                            } else {
+                                null
+                            },
+                            isPlaying = song.file.documentId == playingSongId,
+                            broken = song.isBroken(brokenFiles),
+                            onClick = { actions.playSong(songs, index) }
+                        )
+                    }
                 }
             }
         }
@@ -280,7 +286,7 @@ private fun SongList(
 @Composable
 private fun NoFolderPreview() {
     MiautifyTheme {
-        MusicFolderContent(folder = null, folderName = null, scan = null, sorting = Sorting(), brokenFiles = emptyMap(), playingSongId = null, refreshing = false, actions = LibraryActions(), modifier = Modifier.fillMaxSize())
+        MusicFolderContent(folder = null, folderName = null, scan = null, sorting = Sorting(), sortedSongs = null, brokenFiles = emptyMap(), playingSongId = null, refreshing = false, actions = LibraryActions(), modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -288,7 +294,7 @@ private fun NoFolderPreview() {
 @Composable
 private fun LoadingPreview() {
     MiautifyTheme {
-        MusicFolderContent(folder = Uri.EMPTY, folderName = null, scan = null, sorting = Sorting(), brokenFiles = emptyMap(), playingSongId = null, refreshing = false, actions = LibraryActions(), modifier = Modifier.fillMaxSize())
+        MusicFolderContent(folder = Uri.EMPTY, folderName = null, scan = null, sorting = Sorting(), sortedSongs = null, brokenFiles = emptyMap(), playingSongId = null, refreshing = false, actions = LibraryActions(), modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -296,7 +302,7 @@ private fun LoadingPreview() {
 @Composable
 private fun ScanningPreview() {
     MiautifyTheme {
-        MusicFolderContent(folder = null, folderName = "Music", scan = ScanState.Scanning, sorting = Sorting(), brokenFiles = emptyMap(), playingSongId = null, refreshing = false, actions = LibraryActions(), modifier = Modifier.fillMaxSize())
+        MusicFolderContent(folder = null, folderName = "Music", scan = ScanState.Scanning, sorting = Sorting(), sortedSongs = null, brokenFiles = emptyMap(), playingSongId = null, refreshing = false, actions = LibraryActions(), modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -314,6 +320,7 @@ private fun SongListPreview() {
             folderName = "Music",
             scan = ScanState.Done(songs, tagsToRead = 3, tagsRead = 2),
             sorting = Sorting(),
+            sortedSongs = songs,
             brokenFiles = emptyMap(),
             playingSongId = "2",
             refreshing = false,

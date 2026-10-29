@@ -13,7 +13,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -25,10 +24,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.Player
 import io.github.innocentmiau.miautify.R
 import io.github.innocentmiau.miautify.library.GroupKind
-import io.github.innocentmiau.miautify.library.ScanState
 import io.github.innocentmiau.miautify.library.isBroken
 import io.github.innocentmiau.miautify.library.durationMs
-import io.github.innocentmiau.miautify.library.groupSongs
 import io.github.innocentmiau.miautify.library.hoursAndMinutes
 import io.github.innocentmiau.miautify.library.playCount
 import io.github.innocentmiau.miautify.playback.playSongs
@@ -49,8 +46,9 @@ fun GroupScreen(
     library: LibraryViewModel = viewModel()
 ) {
     BackHandler(onBack = onBack)
-    val allSongs = (library.scan as? ScanState.Done)?.songs.orEmpty()
-    val group = remember(allSongs, kind, id) { groupSongs(allSongs, kind).find { it.id == id } }
+    // Found in the groups the ViewModel made already, so opening one is instant.
+    val lists = library.lists
+    val group = lists?.groups(kind)?.find { it.id == id }
 
     // Read again whenever the song changes, so the plays count up while you listen here: the
     // song before has had its chance to reach 30 seconds by then.
@@ -108,6 +106,11 @@ fun GroupScreen(
             }
         }
 
+        if (lists == null) {
+            // Being made in the background, right after launch or a new folder.
+            SongRowsPlaceholder()
+            return@Column
+        }
         if (group == null) {
             // Its songs were removed or retagged since it was opened.
             Text(

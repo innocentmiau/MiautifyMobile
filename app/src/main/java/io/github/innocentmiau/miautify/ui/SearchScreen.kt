@@ -47,15 +47,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.Player
 import io.github.innocentmiau.miautify.R
 import io.github.innocentmiau.miautify.library.GroupKind
-import io.github.innocentmiau.miautify.library.ScanState
+import io.github.innocentmiau.miautify.library.LibraryLists
 import io.github.innocentmiau.miautify.library.isBroken
-import io.github.innocentmiau.miautify.library.Song
 import io.github.innocentmiau.miautify.library.SongGroup
-import io.github.innocentmiau.miautify.library.SongSearch
-import io.github.innocentmiau.miautify.library.groupSongs
 import io.github.innocentmiau.miautify.library.searchGroups
-import io.github.innocentmiau.miautify.library.sortGroups
-import io.github.innocentmiau.miautify.library.sortSongs
 import io.github.innocentmiau.miautify.playback.playSongs
 
 /** What the search looks through: songs, or groups of songs (null for songs). */
@@ -90,7 +85,7 @@ fun SearchScreen(
 
     val tab = library.searchTab
     val query = library.searchQuery
-    val allSongs = (library.scan as? ScanState.Done)?.songs.orEmpty()
+    val lists = library.lists
 
     // Fresh play counts and times each time browsing opens, so they include what was just heard.
     LaunchedEffect(Unit) { library.loadPlayCounts() }
@@ -112,18 +107,20 @@ fun SearchScreen(
         val chips = rememberSaveableStateHolder()
         chips.SaveableStateProvider(tab.name) {
             val kind = tab.kind
-            if (kind == null) {
-                SongResults(allSongs, query, library, player, playingSongId)
-            } else {
-                // Grouped and sorted once per scan update or sort change, not on every keystroke.
-                val groups = remember(allSongs, kind, library.groupOrder, library.playCounts, library.lastPlayed) {
-                    sortGroups(groupSongs(allSongs, kind), library.groupOrder, library.playCounts, library.lastPlayed)
-                }
-                val results = remember(groups, query) { searchGroups(groups, query) }
-                when {
-                    results.isEmpty() -> Hint(stringResource(R.string.search_nothing))
-                    kind == GroupKind.ALBUM -> AlbumGrid(results, library.folder) { onOpenGroup(kind, it.id) }
-                    else -> GroupList(results, library.folder, library.folderName, kind) { onOpenGroup(kind, it.id) }
+            when {
+                // Being made in the background, a moment for a big library: shapes of what
+                // is coming in the meantime.
+                lists == null -> if (kind == GroupKind.ALBUM) AlbumGridPlaceholder() else SongRowsPlaceholder()
+                kind == null -> SongResults(lists, query, library, player, playingSongId)
+                else -> {
+                    // Made in the ViewModel already; only the search runs here, on each keystroke.
+                    val groups = lists.groups(kind)
+                    val results = remember(groups, query) { searchGroups(groups, query) }
+                    when {
+                        results.isEmpty() -> Hint(stringResource(R.string.search_nothing))
+                        kind == GroupKind.ALBUM -> AlbumGrid(results, library.folder) { onOpenGroup(kind, it.id) }
+                        else -> GroupList(results, library.folder, library.folderName, kind) { onOpenGroup(kind, it.id) }
+                    }
                 }
             }
         }
@@ -132,18 +129,14 @@ fun SearchScreen(
 
 @Composable
 private fun SongResults(
-    allSongs: List<Song>,
+    lists: LibraryLists,
     query: String,
     library: LibraryViewModel,
     player: Player?,
     playingSongId: String?
 ) {
-    val sorted = remember(allSongs, library.sortOrder, library.sortReversed, library.playCounts) {
-        sortSongs(allSongs, library.sortOrder, library.sortReversed, library.playCounts)
-    }
-    // Folds every song's text once, then each keystroke only compares.
-    val search = remember(sorted) { SongSearch(sorted) }
-    val results = remember(search, query) { search.search(query) }
+    // The index has every song's text folded already, so each keystroke only compares.
+    val results = remember(lists.search, query) { lists.search.search(query) }
 
     if (results.isEmpty()) {
         Hint(stringResource(if (query.isBlank()) R.string.search_hint else R.string.search_no_results))
@@ -157,7 +150,7 @@ private fun SongResults(
                 song = song,
                 playCount = null,
                 isPlaying = song.file.documentId == playingSongId,
-                    broken = song.isBroken(library.brokenFiles),
+                broken = song.isBroken(library.brokenFiles),
                 onClick = {
                     val folder = library.folder
                     if (player != null && folder != null) player.playSongs(folder, results, index)
