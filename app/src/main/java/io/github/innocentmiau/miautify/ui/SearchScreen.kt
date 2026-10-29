@@ -32,6 +32,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -106,19 +107,24 @@ fun SearchScreen(
             TabChips(tab, onSelect = library::showSearchTab)
         }
 
-        val kind = tab.kind
-        if (kind == null) {
-            SongResults(allSongs, query, library, player, playingSongId)
-        } else {
-            // Grouped and sorted once per scan update or sort change, not on every keystroke.
-            val groups = remember(allSongs, kind, library.groupOrder, library.playCounts, library.lastPlayed) {
-                sortGroups(groupSongs(allSongs, kind), library.groupOrder, library.playCounts, library.lastPlayed)
-            }
-            val results = remember(groups, query) { searchGroups(groups, query) }
-            when {
-                results.isEmpty() -> Hint(stringResource(R.string.search_nothing))
-                kind == GroupKind.ALBUM -> AlbumGrid(results, library.folder) { onOpenGroup(kind, it.id) }
-                else -> GroupList(results, library.folder, library.folderName, kind) { onOpenGroup(kind, it.id) }
+        // Each chip keeps its own scroll position, so switching from artists to folders and
+        // back returns to the same artist, and two lists never share a position.
+        val chips = rememberSaveableStateHolder()
+        chips.SaveableStateProvider(tab.name) {
+            val kind = tab.kind
+            if (kind == null) {
+                SongResults(allSongs, query, library, player, playingSongId)
+            } else {
+                // Grouped and sorted once per scan update or sort change, not on every keystroke.
+                val groups = remember(allSongs, kind, library.groupOrder, library.playCounts, library.lastPlayed) {
+                    sortGroups(groupSongs(allSongs, kind), library.groupOrder, library.playCounts, library.lastPlayed)
+                }
+                val results = remember(groups, query) { searchGroups(groups, query) }
+                when {
+                    results.isEmpty() -> Hint(stringResource(R.string.search_nothing))
+                    kind == GroupKind.ALBUM -> AlbumGrid(results, library.folder) { onOpenGroup(kind, it.id) }
+                    else -> GroupList(results, library.folder, library.folderName, kind) { onOpenGroup(kind, it.id) }
+                }
             }
         }
     }

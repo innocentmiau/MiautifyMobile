@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import io.github.innocentmiau.miautify.library.GroupKind
@@ -44,6 +45,10 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+// Keys of the screens whose state is kept while they are covered.
+private const val SONGS = "songs"
+private const val BROWSE = "browse"
+
 @Composable
 fun MiautifyApp() {
     val player = rememberPlayer()
@@ -53,6 +58,9 @@ fun MiautifyApp() {
     var browsing by rememberSaveable { mutableStateOf(false) }
     var openKind by rememberSaveable { mutableStateOf<GroupKind?>(null) }
     var openId by rememberSaveable { mutableStateOf<String?>(null) }
+    // Keeps what a screen remembers, like how far its list is scrolled, while another screen
+    // covers it: without it, coming back from an album started the albums at the top again.
+    val screens = rememberSaveableStateHolder()
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -97,23 +105,31 @@ fun MiautifyApp() {
                 modifier = screenModifier
             )
         } else if (browsing) {
-            SearchScreen(
-                player = player,
-                playingSongId = nowPlaying?.songId,
-                onOpenGroup = { groupKind, groupId ->
-                    openKind = groupKind
-                    openId = groupId
-                },
-                onClose = { browsing = false },
-                modifier = screenModifier
-            )
+            screens.SaveableStateProvider(BROWSE) {
+                SearchScreen(
+                    player = player,
+                    playingSongId = nowPlaying?.songId,
+                    onOpenGroup = { groupKind, groupId ->
+                        openKind = groupKind
+                        openId = groupId
+                    },
+                    onClose = {
+                        browsing = false
+                        // Leaving browsing for good: it opens at the top next time.
+                        screens.removeState(BROWSE)
+                    },
+                    modifier = screenModifier
+                )
+            }
         } else {
-            MusicFolderScreen(
-                player = player,
-                playingSongId = nowPlaying?.songId,
-                onBrowse = { browsing = true },
-                modifier = screenModifier
-            )
+            screens.SaveableStateProvider(SONGS) {
+                MusicFolderScreen(
+                    player = player,
+                    playingSongId = nowPlaying?.songId,
+                    onBrowse = { browsing = true },
+                    modifier = screenModifier
+                )
+            }
         }
     }
 }
