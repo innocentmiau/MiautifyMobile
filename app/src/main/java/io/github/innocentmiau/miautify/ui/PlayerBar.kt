@@ -158,8 +158,7 @@ private fun GoToItem(kind: GroupKind, group: SongGroup, folderName: String?, onC
             Column {
                 Text(stringResource(label))
                 Text(
-                    // The music folder itself has no name of its own in the library.
-                    text = group.name.ifEmpty { folderName.orEmpty() },
+                    text = groupTitle(group, folderName),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,

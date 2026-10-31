@@ -57,7 +57,7 @@ fun GroupScreen(
 
     Column(modifier = modifier) {
         Row(
-            modifier = Modifier.padding(end = 16.dp, top = 8.dp, bottom = 8.dp),
+            modifier = Modifier.padding(end = 8.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
@@ -65,7 +65,11 @@ fun GroupScreen(
             }
             if (group != null) {
                 CoverImage(rememberCover(library.folder, group.songs.first().file), size = 64.dp)
-                Column(modifier = Modifier.padding(start = 12.dp)) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 12.dp)
+                ) {
                     Text(
                         text = groupTitle(group, library.folderName),
                         style = MaterialTheme.typography.titleLarge,
@@ -104,6 +108,7 @@ fun GroupScreen(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+                ContinueQueueButton(player, playingSongId, library.folder, group.songs, groupTitle(group, library.folderName))
             }
         }
 

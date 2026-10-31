@@ -80,6 +80,7 @@ fun MusicFolderScreen(
     }
 
     MusicFolderContent(
+        player = player,
         folder = library.folder,
         folderName = library.folderName,
         scan = library.scan,
@@ -118,6 +119,7 @@ private data class LibraryActions(
  */
 @Composable
 private fun MusicFolderContent(
+    player: Player?,
     folder: Uri?,
     folderName: String?,
     scan: ScanState?,
@@ -144,7 +146,7 @@ private fun MusicFolderContent(
                 // No list to pull down here, so the message gets its own Refresh button.
                 Message(stringResource(R.string.library_no_songs), actions.chooseFolder, modifier, onRefresh = actions.refresh)
             } else {
-                SongList(folder, folderName, scan, sorting, sortedSongs, brokenFiles, playingSongId, refreshing, actions, modifier)
+                SongList(player, folder, folderName, scan, sorting, sortedSongs, brokenFiles, playingSongId, refreshing, actions, modifier)
             }
     }
 }
@@ -209,6 +211,7 @@ private fun Scanning(modifier: Modifier = Modifier) {
 
 @Composable
 private fun SongList(
+    player: Player?,
     folder: Uri?,
     folderName: String?,
     scan: ScanState.Done,
@@ -241,6 +244,10 @@ private fun SongList(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+            // The whole library, in the order shown, after the playing song.
+            if (sortedSongs != null) {
+                ContinueQueueButton(player, playingSongId, folder, sortedSongs, folderName.orEmpty())
             }
             IconButton(onClick = actions.browse) {
                 Icon(painterResource(R.drawable.ic_library_music), stringResource(R.string.browse))
@@ -286,7 +293,7 @@ private fun SongList(
 @Composable
 private fun NoFolderPreview() {
     MiautifyTheme {
-        MusicFolderContent(folder = null, folderName = null, scan = null, sorting = Sorting(), sortedSongs = null, brokenFiles = emptyMap(), playingSongId = null, refreshing = false, actions = LibraryActions(), modifier = Modifier.fillMaxSize())
+        MusicFolderContent(player = null, folder = null, folderName = null, scan = null, sorting = Sorting(), sortedSongs = null, brokenFiles = emptyMap(), playingSongId = null, refreshing = false, actions = LibraryActions(), modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -294,7 +301,7 @@ private fun NoFolderPreview() {
 @Composable
 private fun LoadingPreview() {
     MiautifyTheme {
-        MusicFolderContent(folder = Uri.EMPTY, folderName = null, scan = null, sorting = Sorting(), sortedSongs = null, brokenFiles = emptyMap(), playingSongId = null, refreshing = false, actions = LibraryActions(), modifier = Modifier.fillMaxSize())
+        MusicFolderContent(player = null, folder = Uri.EMPTY, folderName = null, scan = null, sorting = Sorting(), sortedSongs = null, brokenFiles = emptyMap(), playingSongId = null, refreshing = false, actions = LibraryActions(), modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -302,7 +309,7 @@ private fun LoadingPreview() {
 @Composable
 private fun ScanningPreview() {
     MiautifyTheme {
-        MusicFolderContent(folder = null, folderName = "Music", scan = ScanState.Scanning, sorting = Sorting(), sortedSongs = null, brokenFiles = emptyMap(), playingSongId = null, refreshing = false, actions = LibraryActions(), modifier = Modifier.fillMaxSize())
+        MusicFolderContent(player = null, folder = null, folderName = "Music", scan = ScanState.Scanning, sorting = Sorting(), sortedSongs = null, brokenFiles = emptyMap(), playingSongId = null, refreshing = false, actions = LibraryActions(), modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -316,6 +323,7 @@ private fun SongListPreview() {
     )
     MiautifyTheme {
         MusicFolderContent(
+            player = null,
             folder = null,
             folderName = "Music",
             scan = ScanState.Done(songs, tagsToRead = 3, tagsRead = 2),

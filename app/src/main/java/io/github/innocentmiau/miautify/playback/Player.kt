@@ -162,6 +162,30 @@ fun Player.playSongs(folder: Uri, songs: List<Song>, startIndex: Int) {
     play()
 }
 
+/**
+ * Keeps the playing song going, without a pause, and makes [songs] the rest of the queue: see
+ * [aroundPlaying] for where they go. Does nothing when nothing is loaded.
+ */
+fun Player.continueWith(folder: Uri, songs: List<Song>) {
+    val playingId = currentMediaItem?.mediaId ?: return
+    val (before, after) = aroundPlaying(songs, playingId)
+    // Two replacements around the playing song, which itself is never touched, so it plays on.
+    // After first: replacing what is before moves the playing song's index.
+    val current = currentMediaItemIndex
+    replaceMediaItems(current + 1, mediaItemCount, after.map { it.toMediaItem(folder) })
+    replaceMediaItems(0, current, before.map { it.toMediaItem(folder) })
+}
+
+/**
+ * What goes before and after the playing song when [songs] continue the queue. When the song
+ * is in [songs] it keeps its place there, so the songs after it come next. When it isn't, all of
+ * [songs] come after it, from the start.
+ */
+fun aroundPlaying(songs: List<Song>, playingId: String): Pair<List<Song>, List<Song>> {
+    val at = songs.indexOfFirst { it.file.documentId == playingId }
+    return if (at < 0) emptyList<Song>() to songs else songs.subList(0, at) to songs.subList(at + 1, songs.size)
+}
+
 private fun Song.toMediaItem(folder: Uri): MediaItem =
     MediaItem.Builder()
         .setMediaId(file.documentId)

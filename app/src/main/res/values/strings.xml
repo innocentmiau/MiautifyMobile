@@ -21,6 +21,8 @@
     <string name="player_go_to_album">Go to album</string>
     <string name="player_go_to_artist">Go to artist</string>
     <string name="player_go_to_folder">Go to folder</string>
+    <string name="continue_queue">Continue the queue with this list</string>
+    <string name="continue_queue_done">Up next: %1$s</string>
     <string name="song_broken">Can\'t play this file</string>
     <string name="back">Back</string>
     <string name="browse">Browse</string>
