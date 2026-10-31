@@ -67,18 +67,7 @@ fun MusicFolderScreen(
     // Gives the same LibraryViewModel back after a rotation, instead of a new one.
     library: LibraryViewModel = viewModel()
 ) {
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { picked ->
-        // Null when the user backs out of the picker: keep the current folder.
-        if (picked != null) {
-            if (picked != library.folder) {
-                // The queue holds songs from the old folder, which the app can't read once
-                // chooseFolder gives that folder back, so the next song would fail. Clearing
-                // it also stops playback and deletes the saved queue.
-                player?.clearMediaItems()
-            }
-            library.chooseFolder(picked)
-        }
-    }
+    val chooseFolder = rememberFolderPicker(player, library)
 
     MusicFolderContent(
         player = player,
@@ -93,8 +82,7 @@ fun MusicFolderScreen(
         actions = LibraryActions(
             sort = library::sortBy,
             browse = onBrowse,
-            // Opens the picker inside the current folder, so changing it is quicker.
-            chooseFolder = { picker.launch(library.folder) },
+            chooseFolder = chooseFolder,
             refresh = library::refresh,
             settings = onSettings,
             playSong = { songs, index ->
@@ -104,6 +92,28 @@ fun MusicFolderScreen(
         ),
         modifier = modifier
     )
+}
+
+/**
+ * Opens the system folder picker and switches to the folder picked. Shared by the screens
+ * whose gear menu has "Change folder".
+ */
+@Composable
+fun rememberFolderPicker(player: Player?, library: LibraryViewModel): () -> Unit {
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { picked ->
+        // Null when the user backs out of the picker: keep the current folder.
+        if (picked != null) {
+            if (picked != library.folder) {
+                // The queue holds songs from the old folder, which the app can't read once
+                // chooseFolder gives that folder back, so the next song would fail. Clearing
+                // it also stops playback and deletes the saved queue.
+                player?.clearMediaItems()
+            }
+            library.chooseFolder(picked)
+        }
+    }
+    // Opens the picker inside the current folder, so changing it is quicker.
+    return { picker.launch(library.folder) }
 }
 
 /** What the library screen's buttons and rows do, in one value instead of five parameters. */

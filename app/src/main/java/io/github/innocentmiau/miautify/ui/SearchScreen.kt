@@ -73,6 +73,7 @@ fun SearchScreen(
     playingSongId: String?,
     onOpenGroup: (GroupKind, id: String) -> Unit,
     onClose: () -> Unit,
+    onSettings: () -> Unit,
     modifier: Modifier = Modifier,
     // The same LibraryViewModel as the library screen: both belong to the activity.
     library: LibraryViewModel = viewModel()
@@ -91,7 +92,22 @@ fun SearchScreen(
     LaunchedEffect(Unit) { library.loadPlayCounts() }
 
     Column(modifier = modifier) {
-        SearchField(query, stringResource(tab.placeholder), onQueryChange = library::search, onClose = close)
+        // The gear sits beside the field, not in it, so it reads as the app's menu (the same
+        // one as on the home screen) and not as options for the search.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SearchField(
+                query,
+                stringResource(tab.placeholder),
+                onQueryChange = library::search,
+                onClose = close,
+                modifier = Modifier.weight(1f)
+            )
+            AppMenu(
+                onChooseFolder = rememberFolderPicker(player, library),
+                onRefresh = library::refresh,
+                onSettings = onSettings
+            )
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             // Sorts what the chip shows: groups have their own orders, songs use the song list's.
             if (tab.kind == null) {
@@ -272,11 +288,17 @@ private fun Hint(text: String) {
 
 /** The text field, with a back arrow and a clear button. The keyboard only opens when it is tapped. */
 @Composable
-private fun SearchField(query: String, placeholder: String, onQueryChange: (String) -> Unit, onClose: () -> Unit) {
+private fun SearchField(
+    query: String,
+    placeholder: String,
+    onQueryChange: (String) -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     TextField(
         value = query,
         onValueChange = onQueryChange,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         placeholder = { Text(placeholder) },
         leadingIcon = {
             IconButton(onClick = onClose) {

@@ -110,7 +110,7 @@ fun MiautifyApp() {
         val kind = openKind
         val id = openId
         if (inSettings) {
-            // On top of everything, opened from the home screen's gear.
+            // On top of everything, opened from the gear on home or browsing.
             SettingsScreen(onBack = { inSettings = false }, modifier = screenModifier)
         } else if (kind != null && id != null) {
             // A fresh screen for each group, so going from an album straight to its artist
@@ -142,6 +142,7 @@ fun MiautifyApp() {
                         // Leaving browsing for good: it opens at the top next time.
                         screens.removeState(BROWSE)
                     },
+                    onSettings = { inSettings = true },
                     modifier = screenModifier
                 )
             }
