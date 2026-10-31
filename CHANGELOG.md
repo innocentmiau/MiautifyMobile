@@ -2,6 +2,17 @@
 
 All notable changes to MiautifyMobile. Versions follow [Semantic Versioning](https://semver.org).
 
+## [0.2.0] - 2026-10-31
+
+Getting around while music plays.
+
+- Tap the playing song in the player bar to go to its album, artist or folder.
+- A new button in the header of the song list and of every album, artist and folder makes
+  that list the rest of the queue, while the song playing now carries on.
+- Change folder and Refresh moved into a gear menu, on the song list and on the browse screen.
+- A Settings screen, with a first setting: show album, artist and folder names in full instead
+  of cutting them off.
+
 ## [0.1.0] - 2026-10-29
 
 The first release: a player for a folder of mp3 files on the phone.
