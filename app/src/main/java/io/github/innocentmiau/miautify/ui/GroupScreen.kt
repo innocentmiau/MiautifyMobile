@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -122,7 +123,11 @@ fun GroupScreen(
             return@Column
         }
 
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
+        // Opens at the playing song when it is in this group, with two songs above it, so
+        // going to it from the player bar shows where it is.
+        val playingIndex = group.songs.indexOfFirst { it.file.documentId == playingSongId }
+        val listState = rememberLazyListState(initialFirstVisibleItemIndex = (playingIndex - 2).coerceAtLeast(0))
+        LazyColumn(modifier = Modifier.fillMaxSize(), state = listState) {
             itemsIndexed(group.songs, key = { _, song -> song.file.documentId }) { index, song ->
                 SongRow(
                     folder = library.folder,

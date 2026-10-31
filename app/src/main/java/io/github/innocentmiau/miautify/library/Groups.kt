@@ -46,7 +46,7 @@ fun groupSongs(songs: List<Song>, kind: GroupKind): List<SongGroup> = when (kind
  */
 fun albums(songs: List<Song>): List<SongGroup> =
     songs.filter { it.tags?.album != null }
-        .groupBy(::albumKey)
+        .groupBy { groupIdOf(it, GroupKind.ALBUM)!! }
         .map { (key, inAlbum) ->
             val tags = inAlbum.first().tags!!
             val artists = inAlbum.mapNotNull { it.tags?.artist }.distinctBy(::foldForSearch)
@@ -54,16 +54,10 @@ fun albums(songs: List<Song>): List<SongGroup> =
         }
         .sortedWith(byName)
 
-private fun albumKey(song: Song): String {
-    val tags = song.tags!!
-    val owner = tags.albumArtist?.let(::foldForSearch) ?: "folder:${song.file.folder}"
-    return "${foldForSearch(tags.album!!)}|$owner"
-}
-
 /** Artists by the songs' artist tag, ignoring case and accents. Each one's songs by album, then track. */
 fun artists(songs: List<Song>): List<SongGroup> =
     songs.filter { it.tags?.artist != null }
-        .groupBy { foldForSearch(it.tags!!.artist!!) }
+        .groupBy { groupIdOf(it, GroupKind.ARTIST)!! }
         .map { (key, byArtist) ->
             val inOrder = byArtist.sortedWith(compareBy<Song, String>(textOrder) { it.tags?.album.orEmpty() }.then(trackOrder))
             SongGroup(key, byArtist.first().tags!!.artist!!, null, inOrder)
@@ -72,7 +66,7 @@ fun artists(songs: List<Song>): List<SongGroup> =
 
 /** Every folder that has songs directly in it, by path, each with its songs in folder order. */
 fun folders(songs: List<Song>): List<SongGroup> =
-    songs.groupBy { it.file.folder }
+    songs.groupBy { groupIdOf(it, GroupKind.FOLDER)!! }
         .map { (path, inFolder) ->
             SongGroup(
                 id = path,
@@ -82,6 +76,22 @@ fun folders(songs: List<Song>): List<SongGroup> =
             )
         }
         .sortedWith(compareBy(textOrder, SongGroup::id))
+
+/**
+ * The id of the group of [kind] that [song] is in, the same one [groupSongs] gives it, or null
+ * when it is in none: an album or artist needs that tag.
+ */
+fun groupIdOf(song: Song, kind: GroupKind): String? {
+    val tags = song.tags
+    return when (kind) {
+        GroupKind.ALBUM -> tags?.album?.let { album ->
+            val owner = tags.albumArtist?.let(::foldForSearch) ?: "folder:${song.file.folder}"
+            "${foldForSearch(album)}|$owner"
+        }
+        GroupKind.ARTIST -> tags?.artist?.let(::foldForSearch)
+        GroupKind.FOLDER -> song.file.folder
+    }
+}
 
 /** How long all the group's songs last together. Songs whose length isn't known count as 0. */
 val SongGroup.durationMs: Long

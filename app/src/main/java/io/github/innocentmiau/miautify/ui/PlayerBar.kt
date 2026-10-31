@@ -1,9 +1,13 @@
 package io.github.innocentmiau.miautify.ui
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,13 +32,16 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import io.github.innocentmiau.miautify.R
 import io.github.innocentmiau.miautify.library.Cover
+import io.github.innocentmiau.miautify.library.GroupKind
+import io.github.innocentmiau.miautify.library.SongGroup
 import io.github.innocentmiau.miautify.library.formatDuration
 import io.github.innocentmiau.miautify.playback.NowPlaying
 import io.github.innocentmiau.miautify.ui.theme.MiautifyTheme
 
 /**
  * The bar at the bottom: shuffle, the seek bar with times and repeat on top, then the playing
- * song with previous, play or pause, and next.
+ * song with previous, play or pause, and next. Tapping the song opens a menu to go to the
+ * album, artist or folder it is in ([groups]); with none, it can't be tapped.
  */
 @Composable
 fun PlayerBar(
@@ -47,6 +54,9 @@ fun PlayerBar(
     onNext: () -> Unit,
     onShuffle: (enabled: Boolean) -> Unit,
     onRepeat: () -> Unit,
+    groups: List<Pair<GroupKind, SongGroup>>,
+    folderName: String?,
+    onOpenGroup: (kind: GroupKind, id: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -77,26 +87,44 @@ fun PlayerBar(
                 modifier = Modifier.padding(start = 16.dp, end = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                CoverImage(cover)
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 12.dp)
-                ) {
-                    Text(
-                        text = nowPlaying.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    nowPlaying.artist?.let {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                // The menu is placed from this box, so it lines up with the song.
+                Box(modifier = Modifier.weight(1f)) {
+                    var menuOpen by remember { mutableStateOf(false) }
+                    Row(
+                        modifier = Modifier.clickable(
+                            enabled = groups.isNotEmpty(),
+                            onClickLabel = stringResource(R.string.player_song_menu),
+                            onClick = { menuOpen = true }
+                        ),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CoverImage(cover)
+                        Column(modifier = Modifier.padding(start = 12.dp)) {
+                            Text(
+                                text = nowPlaying.title,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            nowPlaying.artist?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                    // Opens upwards on its own: it goes where it fits, and the bar is at the bottom.
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        for ((kind, group) in groups) {
+                            GoToItem(kind, group, folderName) {
+                                menuOpen = false
+                                onOpenGroup(kind, group.id)
+                            }
+                        }
                     }
                 }
                 IconButton(onClick = onPrevious) {
@@ -115,6 +143,33 @@ fun PlayerBar(
             }
         }
     }
+}
+
+/** "Go to album" and the like, with the group's name below. */
+@Composable
+private fun GoToItem(kind: GroupKind, group: SongGroup, folderName: String?, onClick: () -> Unit) {
+    val (icon, label) = when (kind) {
+        GroupKind.ALBUM -> R.drawable.ic_album to R.string.player_go_to_album
+        GroupKind.ARTIST -> R.drawable.ic_person to R.string.player_go_to_artist
+        GroupKind.FOLDER -> R.drawable.ic_folder to R.string.player_go_to_folder
+    }
+    DropdownMenuItem(
+        text = {
+            Column {
+                Text(stringResource(label))
+                Text(
+                    // The music folder itself has no name of its own in the library.
+                    text = group.name.ifEmpty { folderName.orEmpty() },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        },
+        leadingIcon = { Icon(painterResource(icon), contentDescription = null) },
+        onClick = onClick
+    )
 }
 
 /** Three states, so not a toggle: a plain button whose icon, color and description show the mode. */
@@ -187,7 +242,10 @@ private fun PlayerBarPreview() {
             onPlayPause = {},
             onNext = {},
             onShuffle = {},
-            onRepeat = {}
+            onRepeat = {},
+            groups = emptyList(),
+            folderName = null,
+            onOpenGroup = { _, _ -> }
         )
     }
 }

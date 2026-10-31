@@ -25,4 +25,18 @@ class LibraryListsTest {
         assertEquals(listOf("Zebra", "Ant"), lists.groups(GroupKind.ALBUM).map { it.name })
         assertEquals(listOf("Apple", "Banana"), lists.search.search("artist").map { it.title })
     }
+
+    @Test
+    fun groupsOfFindsTheAlbumArtistAndFolderOfASongAndSkipsTheOnesItHasNoTagFor() {
+        val tagged = Song(SongFile("1", "1.mp3", "Rock/Queen"), SongTags("One", "Queen", "Jazz", null))
+        val untagged = Song(SongFile("2", "2.mp3", "Misc"), SongTags("Two", null, null, null))
+        val lists = buildLists(listOf(tagged, untagged), SortOrder.TITLE, false, GroupOrder.NAME, emptyMap(), emptyMap())
+
+        assertEquals(
+            listOf(GroupKind.ALBUM to "Jazz", GroupKind.ARTIST to "Queen", GroupKind.FOLDER to "Queen"),
+            lists.groupsOf("1").map { (kind, group) -> kind to group.name }
+        )
+        assertEquals(listOf(GroupKind.FOLDER to "Misc"), lists.groupsOf("2").map { (kind, group) -> kind to group.name })
+        assertEquals(emptyList<Pair<GroupKind, SongGroup>>(), lists.groupsOf("gone"))
+    }
 }

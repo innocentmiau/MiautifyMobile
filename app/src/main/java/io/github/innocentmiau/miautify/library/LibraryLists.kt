@@ -19,6 +19,18 @@ class LibraryLists(
         GroupKind.ARTIST -> artists
         GroupKind.FOLDER -> folders
     }
+
+    /**
+     * The album, artist and folder the song with [songId] (a document id) is in, those it has,
+     * in that order. Empty when it isn't in the library (anymore).
+     */
+    fun groupsOf(songId: String): List<Pair<GroupKind, SongGroup>> {
+        val song = songs.find { it.file.documentId == songId } ?: return emptyList()
+        return GroupKind.entries.mapNotNull { kind ->
+            val id = groupIdOf(song, kind) ?: return@mapNotNull null
+            groups(kind).find { it.id == id }?.let { kind to it }
+        }
+    }
 }
 
 /**

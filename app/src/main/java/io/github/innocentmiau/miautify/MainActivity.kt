@@ -12,11 +12,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.innocentmiau.miautify.library.GroupKind
 import io.github.innocentmiau.miautify.playback.nextRepeatMode
 import io.github.innocentmiau.miautify.playback.rememberArtwork
@@ -24,6 +27,7 @@ import io.github.innocentmiau.miautify.playback.rememberNowPlaying
 import io.github.innocentmiau.miautify.playback.rememberPlayer
 import io.github.innocentmiau.miautify.playback.rememberPositionMs
 import io.github.innocentmiau.miautify.ui.GroupScreen
+import io.github.innocentmiau.miautify.ui.LibraryViewModel
 import io.github.innocentmiau.miautify.ui.MusicFolderScreen
 import io.github.innocentmiau.miautify.ui.PlayerBar
 import io.github.innocentmiau.miautify.ui.SearchScreen
@@ -61,6 +65,8 @@ fun MiautifyApp() {
     // Keeps what a screen remembers, like how far its list is scrolled, while another screen
     // covers it: without it, coming back from an album started the albums at the top again.
     val screens = rememberSaveableStateHolder()
+    // The same one the screens get: the activity keeps a single one.
+    val library: LibraryViewModel = viewModel()
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -69,6 +75,9 @@ fun MiautifyApp() {
                 // Read here and not above, so the 4 updates per second redraw only the bar.
                 val positionMs = rememberPositionMs(player)
                 val cover = rememberArtwork(player, nowPlaying)
+                // Looked up once per song, not on every redraw of the bar.
+                val lists = library.lists
+                val groups = remember(lists, nowPlaying.songId) { lists?.groupsOf(nowPlaying.songId).orEmpty() }
                 PlayerBar(
                     nowPlaying = nowPlaying,
                     cover = cover,
@@ -78,7 +87,13 @@ fun MiautifyApp() {
                     onPlayPause = { if (player.isPlaying) player.pause() else player.play() },
                     onNext = { player.seekToNext() },
                     onShuffle = { player.shuffleModeEnabled = it },
-                    onRepeat = { player.repeatMode = nextRepeatMode(player.repeatMode) }
+                    onRepeat = { player.repeatMode = nextRepeatMode(player.repeatMode) },
+                    groups = groups,
+                    folderName = library.folderName,
+                    onOpenGroup = { groupKind, groupId ->
+                        openKind = groupKind
+                        openId = groupId
+                    }
                 )
             }
         }
@@ -93,17 +108,21 @@ fun MiautifyApp() {
         val kind = openKind
         val id = openId
         if (kind != null && id != null) {
-            GroupScreen(
-                kind = kind,
-                id = id,
-                player = player,
-                playingSongId = nowPlaying?.songId,
-                onBack = {
-                    openKind = null
-                    openId = null
-                },
-                modifier = screenModifier
-            )
+            // A fresh screen for each group, so going from an album straight to its artist
+            // from the player bar doesn't carry the album's scroll over.
+            key(kind, id) {
+                GroupScreen(
+                    kind = kind,
+                    id = id,
+                    player = player,
+                    playingSongId = nowPlaying?.songId,
+                    onBack = {
+                        openKind = null
+                        openId = null
+                    },
+                    modifier = screenModifier
+                )
+            }
         } else if (browsing) {
             screens.SaveableStateProvider(BROWSE) {
                 SearchScreen(
