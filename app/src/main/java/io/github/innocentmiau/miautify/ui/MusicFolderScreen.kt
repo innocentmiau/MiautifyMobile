@@ -253,9 +253,7 @@ private fun SongList(
                 Icon(painterResource(R.drawable.ic_library_music), stringResource(R.string.browse))
             }
             SortMenu(sorting.order, sorting.reversed, actions.sort)
-            TextButton(onClick = actions.chooseFolder) {
-                Text(stringResource(R.string.library_change_folder))
-            }
+            AppMenu(onChooseFolder = actions.chooseFolder, onRefresh = actions.refresh)
         }
 
         // Pull the list down from the top to look for new, changed or removed files.
