@@ -39,6 +39,11 @@ class Settings(context: Context) {
         get() = GroupOrder.entries.find { it.name == prefs.getString(KEY_GROUP_ORDER, null) } ?: GroupOrder.MOST_PLAYED
         set(value) = prefs.edit { putString(KEY_GROUP_ORDER, value.name) }
 
+    /** Album, artist and folder names wrap onto more lines in the lists instead of being cut off. */
+    var fullNames: Boolean
+        get() = prefs.getBoolean(KEY_FULL_NAMES, false)
+        set(value) = prefs.edit { putBoolean(KEY_FULL_NAMES, value) }
+
     private companion object {
         const val KEY_MUSIC_FOLDER = "music_folder"
         const val KEY_SHUFFLE = "shuffle"
@@ -46,5 +51,6 @@ class Settings(context: Context) {
         const val KEY_SORT_ORDER = "sort_order"
         const val KEY_SORT_REVERSED = "sort_reversed"
         const val KEY_GROUP_ORDER = "group_order"
+        const val KEY_FULL_NAMES = "full_names"
     }
 }

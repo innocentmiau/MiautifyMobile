@@ -19,10 +19,10 @@ import io.github.innocentmiau.miautify.R
 
 /**
  * The gear in the library's header: things done now and then, kept out of the header so it
- * stays tidy. Settings go here too once there are some.
+ * stays tidy, and the way to the settings.
  */
 @Composable
-fun AppMenu(onChooseFolder: () -> Unit, onRefresh: () -> Unit) {
+fun AppMenu(onChooseFolder: () -> Unit, onRefresh: () -> Unit, onSettings: () -> Unit) {
     var open by remember { mutableStateOf(false) }
     // The box anchors the menu to the gear.
     Box {
@@ -37,6 +37,10 @@ fun AppMenu(onChooseFolder: () -> Unit, onRefresh: () -> Unit) {
             MenuItem(R.drawable.ic_refresh, R.string.library_refresh) {
                 open = false
                 onRefresh()
+            }
+            MenuItem(R.drawable.ic_settings, R.string.settings) {
+                open = false
+                onSettings()
             }
         }
     }

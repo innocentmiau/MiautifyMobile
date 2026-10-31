@@ -105,6 +105,8 @@ fun SearchScreen(
         // Each chip keeps its own scroll position, so switching from artists to folders and
         // back returns to the same artist, and two lists never share a position.
         val chips = rememberSaveableStateHolder()
+        // As many lines as a name needs with the setting on, else one, cut off with "…".
+        val nameLines = if (library.fullNames) Int.MAX_VALUE else 1
         chips.SaveableStateProvider(tab.name) {
             val kind = tab.kind
             when {
@@ -118,8 +120,8 @@ fun SearchScreen(
                     val results = remember(groups, query) { searchGroups(groups, query) }
                     when {
                         results.isEmpty() -> Hint(stringResource(R.string.search_nothing))
-                        kind == GroupKind.ALBUM -> AlbumGrid(results, library.folder) { onOpenGroup(kind, it.id) }
-                        else -> GroupList(results, library.folder, library.folderName, kind) { onOpenGroup(kind, it.id) }
+                        kind == GroupKind.ALBUM -> AlbumGrid(results, library.folder, nameLines) { onOpenGroup(kind, it.id) }
+                        else -> GroupList(results, library.folder, library.folderName, kind, nameLines) { onOpenGroup(kind, it.id) }
                     }
                 }
             }
@@ -160,9 +162,12 @@ private fun SongResults(
     }
 }
 
-/** Albums as a grid of covers: as many columns as fit, each at least 110 dp wide. */
+/**
+ * Albums as a grid of covers: as many columns as fit, each at least 110 dp wide. Names and
+ * artists get [nameLines] lines; a row of the grid is as tall as its tallest album.
+ */
 @Composable
-private fun AlbumGrid(albums: List<SongGroup>, folder: Uri?, onOpen: (SongGroup) -> Unit) {
+private fun AlbumGrid(albums: List<SongGroup>, folder: Uri?, nameLines: Int, onOpen: (SongGroup) -> Unit) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 110.dp),
         modifier = Modifier.fillMaxSize().imePadding(),
@@ -180,7 +185,7 @@ private fun AlbumGrid(albums: List<SongGroup>, folder: Uri?, onOpen: (SongGroup)
                 Text(
                     text = album.name,
                     style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
+                    maxLines = nameLines,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 6.dp)
                 )
@@ -188,7 +193,7 @@ private fun AlbumGrid(albums: List<SongGroup>, folder: Uri?, onOpen: (SongGroup)
                     text = album.detail ?: stringResource(R.string.various_artists),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    maxLines = nameLines,
                     overflow = TextOverflow.Ellipsis
                 )
             }
@@ -196,13 +201,14 @@ private fun AlbumGrid(albums: List<SongGroup>, folder: Uri?, onOpen: (SongGroup)
     }
 }
 
-/** Artists or folders as rows: a cover from their first song, the name, and the song count. */
+/** Artists or folders as rows: a cover from their first song, the name in [nameLines] lines, and the song count. */
 @Composable
 private fun GroupList(
     groups: List<SongGroup>,
     folder: Uri?,
     folderName: String?,
     kind: GroupKind,
+    nameLines: Int,
     onOpen: (SongGroup) -> Unit
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize().imePadding()) {
@@ -212,7 +218,7 @@ private fun GroupList(
                 modifier = Modifier.clickable { onOpen(group) },
                 leadingContent = { CoverImage(rememberCover(folder, group.songs.first().file)) },
                 headlineContent = {
-                    Text(groupTitle(group, folderName), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(groupTitle(group, folderName), maxLines = nameLines, overflow = TextOverflow.Ellipsis)
                 },
                 supportingContent = {
                     // A folder shows where it is: "Rock · 12 songs".

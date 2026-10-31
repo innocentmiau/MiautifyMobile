@@ -55,6 +55,10 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     var groupOrder by mutableStateOf(settings.groupOrder)
         private set
 
+    /** See [Settings.fullNames]. */
+    var fullNames by mutableStateOf(settings.fullNames)
+        private set
+
     /**
      * Play counts by document id, for sorting by most played. Read when the app opens, when
      * that sort is picked and when browsing opens, not live, so a list doesn't reorder itself
@@ -136,6 +140,11 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         settings.sortOrder = order
         settings.sortReversed = reversed
         if (order == SortOrder.MOST_PLAYED) loadPlayCounts()
+    }
+
+    fun showFullNames(show: Boolean) {
+        fullNames = show
+        settings.fullNames = show
     }
 
     fun sortGroupsBy(order: GroupOrder) {

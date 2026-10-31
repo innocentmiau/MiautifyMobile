@@ -62,6 +62,7 @@ fun MusicFolderScreen(
     player: Player?,
     playingSongId: String?,
     onBrowse: () -> Unit,
+    onSettings: () -> Unit,
     modifier: Modifier = Modifier,
     // Gives the same LibraryViewModel back after a rotation, instead of a new one.
     library: LibraryViewModel = viewModel()
@@ -95,6 +96,7 @@ fun MusicFolderScreen(
             // Opens the picker inside the current folder, so changing it is quicker.
             chooseFolder = { picker.launch(library.folder) },
             refresh = library::refresh,
+            settings = onSettings,
             playSong = { songs, index ->
                 val folder = library.folder
                 if (player != null && folder != null) player.playSongs(folder, songs, index)
@@ -110,6 +112,7 @@ private data class LibraryActions(
     val browse: () -> Unit = {},
     val chooseFolder: () -> Unit = {},
     val refresh: () -> Unit = {},
+    val settings: () -> Unit = {},
     val playSong: (songs: List<Song>, index: Int) -> Unit = { _, _ -> }
 )
 
@@ -253,7 +256,7 @@ private fun SongList(
                 Icon(painterResource(R.drawable.ic_library_music), stringResource(R.string.browse))
             }
             SortMenu(sorting.order, sorting.reversed, actions.sort)
-            AppMenu(onChooseFolder = actions.chooseFolder, onRefresh = actions.refresh)
+            AppMenu(onChooseFolder = actions.chooseFolder, onRefresh = actions.refresh, onSettings = actions.settings)
         }
 
         // Pull the list down from the top to look for new, changed or removed files.

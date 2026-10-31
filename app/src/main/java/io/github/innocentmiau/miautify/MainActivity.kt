@@ -31,6 +31,7 @@ import io.github.innocentmiau.miautify.ui.LibraryViewModel
 import io.github.innocentmiau.miautify.ui.MusicFolderScreen
 import io.github.innocentmiau.miautify.ui.PlayerBar
 import io.github.innocentmiau.miautify.ui.SearchScreen
+import io.github.innocentmiau.miautify.ui.SettingsScreen
 import io.github.innocentmiau.miautify.ui.theme.MiautifyTheme
 
 class MainActivity : ComponentActivity() {
@@ -60,6 +61,7 @@ fun MiautifyApp() {
     // Which screen shows. Saveable, so a rotation keeps you where you were. An opened group
     // sits on top of browsing, and going back from it returns to browsing as you left it.
     var browsing by rememberSaveable { mutableStateOf(false) }
+    var inSettings by rememberSaveable { mutableStateOf(false) }
     var openKind by rememberSaveable { mutableStateOf<GroupKind?>(null) }
     var openId by rememberSaveable { mutableStateOf<String?>(null) }
     // Keeps what a screen remembers, like how far its list is scrolled, while another screen
@@ -107,7 +109,10 @@ fun MiautifyApp() {
             .consumeWindowInsets(innerPadding)
         val kind = openKind
         val id = openId
-        if (kind != null && id != null) {
+        if (inSettings) {
+            // On top of everything, opened from the home screen's gear.
+            SettingsScreen(onBack = { inSettings = false }, modifier = screenModifier)
+        } else if (kind != null && id != null) {
             // A fresh screen for each group, so going from an album straight to its artist
             // from the player bar doesn't carry the album's scroll over.
             key(kind, id) {
@@ -146,6 +151,7 @@ fun MiautifyApp() {
                     player = player,
                     playingSongId = nowPlaying?.songId,
                     onBrowse = { browsing = true },
+                    onSettings = { inSettings = true },
                     modifier = screenModifier
                 )
             }

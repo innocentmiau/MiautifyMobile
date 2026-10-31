@@ -9,6 +9,9 @@
     <string name="library_no_songs">No mp3 files in this folder.</string>
     <string name="library_refresh">Refresh</string>
     <string name="menu">Menu</string>
+    <string name="settings">Settings</string>
+    <string name="settings_full_names">Show full names</string>
+    <string name="settings_full_names_detail">Album, artist and folder names wrap onto more lines instead of being cut off.</string>
     <string name="library_reading_tags">Reading tags: %1$d of %2$d</string>
     <string name="player_play">Play</string>
     <string name="player_pause">Pause</string>
